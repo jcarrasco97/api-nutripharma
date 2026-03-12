@@ -1,0 +1,146 @@
+openapi: 3.0.3
+info:
+  title: Nutripharma API - Módulo Clínico (Pacientes)
+  version: 1.0.0
+  description: Definición de los endpoints para la gestión del historial de pacientes.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/pacientes:
+    get:
+      summary: Listar todos los pacientes
+      operationId: getAllPacientes
+      tags:
+        - Pacientes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de pacientes recuperada con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PacienteResponse'
+    post:
+      summary: Registrar un nuevo paciente
+      operationId: createPaciente
+      tags:
+        - Pacientes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacienteRequest'
+      responses:
+        '201':
+          description: Paciente creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+
+  /api/pacientes/buscar:
+    get:
+      summary: Buscar paciente por DNI o Email
+      operationId: findPacienteByCriteria
+      tags:
+        - Pacientes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dni
+          in: query
+          schema:
+            type: string
+        - name: email
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paciente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+        '404':
+          description: Paciente no encontrado
+
+  /api/pacientes/{id}:
+    get:
+      summary: Obtener un paciente por ID
+      operationId: getPacienteById
+      tags:
+        - Pacientes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único del paciente
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Datos detallados del paciente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+        '404':
+          description: Paciente no encontrado
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PacienteRequest:
+      type: object
+      required:
+        - nombre
+        - email
+      properties:
+        nombre:
+          type: string
+          example: "María Gómez"
+        email:
+          type: string
+          format: email
+          example: "maria.gomez@email.com"
+        telefono:
+          type: string
+          example: "600123456"
+        fechaNacimiento:
+          type: string
+          format: date
+          example: "1985-05-15"
+        sexo:
+          type: boolean
+          description: "false para mujer, true para hombre"
+          example: false
+        altura:
+          type: string
+          example: "165"
+        historial:
+          type: string
+          example: "Paciente acude a consulta..."
+
+    PacienteResponse:
+      allOf:
+        - type: object
+          properties:
+            idPaciente:
+              type: integer
+              format: int64
+              example: 1
+        - $ref: '#/components/schemas/PacienteRequest'
