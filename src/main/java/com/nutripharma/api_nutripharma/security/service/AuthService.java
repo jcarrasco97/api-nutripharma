@@ -23,19 +23,23 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
-    public String login(String email, String password) {
+    public String login(String username, String password) {
+        // 1. Delegamos a Spring Security la comprobación de la contraseña encriptada
+        // Si la contraseña es incorrecta, saltará una excepción automáticamente aquí.
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
+                new UsernamePasswordAuthenticationToken(username, password)
         );
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        // 2. Si llegamos a esta línea, la contraseña era correcta. Recuperamos al usuario.
+        Usuario usuario = usuarioRepository.findByEmail(username)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado en BD."));
 
+        // 3. Comprobación de negocio adicional
         if (!usuario.getActivo()) {
             throw new IllegalStateException("La cuenta de usuario se encuentra inactiva.");
         }
 
-        // Pasamos el objeto usuario completo (UserDetails) para incluir los roles
+        // 4. Generamos el JWT pasándole el UserDetails (que ahora incluye sus roles)
         return jwtService.generateToken(usuario);
     }
 
@@ -50,7 +54,7 @@ public class AuthService {
 
         Usuario nuevoUsuario = Usuario.builder()
                 .email(email)
-                .password(passwordEncoder.encode(password))
+                .password(passwordEncoder.encode(password)) // Encriptamos antes de guardar
                 .activo(true)
                 .roles(Set.of(rolAsignado))
                 .build();

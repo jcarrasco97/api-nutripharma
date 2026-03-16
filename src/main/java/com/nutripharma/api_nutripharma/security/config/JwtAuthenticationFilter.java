@@ -31,34 +31,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // 1. Extraemos el Header llamado "Authorization"
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
 
+        // 2. Si no hay header o no empieza por "Bearer ", lo dejamos pasar
+        // (Spring Security lo bloqueará después si la ruta es privada)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // 3. Extraemos el token (quitando la palabra "Bearer ")
         jwt = authHeader.substring(7);
         userEmail = jwtService.extractUsername(jwt);
 
+        // 4. Si hay un email en el token y el usuario aún no está autenticado en este hilo
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
+            // 5. Verificamos que el token sea válido para ese usuario
             if (jwtService.isTokenValid(jwt, userDetails)) {
-                // ¡ESTA ES LA LÍNEA CLAVE!
-                // Debes pasar userDetails.getAuthorities() para que Spring vea tus ROLES.
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
                         userDetails.getAuthorities()
                 );
-
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                // 6. Registramos al usuario como "Autenticado" en Spring
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
+        // Continuamos con la petición
         filterChain.doFilter(request, response);
     }
 }
