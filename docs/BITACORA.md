@@ -180,6 +180,31 @@ Implementamos la gestión de catálogo y ventas bajo el paquete `sales`.
 ### 10.3. Regla de Negocio: Umbral de Liquidación
 * Implementamos una validación dura en el `PedidoService`: Un pedido en estado `PENDIENTE_LIQUIDAR` no puede pasar a `LIQUIDADO` si la suma total de las líneas (ignorando productos bonificados) es menor a **80€**. De intentarlo, el backend lanza una `IllegalStateException` abortando la transacción.
 
+## 🌐 CAPÍTULO 11: La Conexión Total y la Batalla del CORS
+
+Al intentar conectar nuestro Frontend autenticado (con JWT) con el Backend, nos topamos con el clásico error de desarrollo web: **CORS (Cross-Origin Resource Sharing)**.
+
+### 11.1. El problema de la petición "Fantasma" (Preflight)
+* **El Síntoma:** El login funcionaba, pero al intentar cargar el Dashboard, React lanzaba un error `ERR_CONNECTION_REFUSED` o `CORS error` en la consola.
+* **El Diagnóstico:** Al añadir el Token (`Authorization: Bearer...`) a las cabeceras HTTP, el navegador (por seguridad) envía primero una petición invisible de tipo `OPTIONS` para pedir permiso al servidor. Nuestro filtro de Spring Security (`SecurityConfig.java`) estaba bloqueando esa petición `OPTIONS` porque no llevaba Token.
+* **La Solución:** Unificamos la configuración CORS dentro de la cadena de Spring Security y añadimos explícitamente `.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()`. Esto permitió que el "saludo" del navegador pasara y la comunicación fluyera perfectamente.
+
 ---
 
-*Estado actual: Cimientos de Base de Datos y APIs CRUD operativas para Organización, Operaciones y Ventas. Siguiente paso: Desarrollo del motor matemático (Resúmenes Mensuales) y conexión con Frontend React.*
+## 🖥️ CAPÍTULO 12: Frontend - Vistas Core y Experiencia de Usuario (UX)
+
+Transformamos el `Dashboard.jsx` de una simple cuadrícula a un **Layout Profesional con Sidebar Dinámico**. El menú se genera al vuelo dependiendo de si el token pertenece a un Administrador, un Nutricionista o una Farmacia.
+
+### 12.1. Vista Resumen y "Empty States"
+* Creamos `VistaResumen.jsx` para mostrar los cálculos matemáticos procesados por el backend.
+* **Decisión de Diseño (UX):** Implementamos un manejo de "Empty States" (Estados Vacíos). Si el usuario no tiene horas ni ventas registradas, en lugar de mostrar contadores a 0 que parezcan un error del sistema, mostramos un panel amarillo amigable explicando que los turnos en "Borrador" no computan.
+
+### 12.2. Vista Consultas (Máquina de Estados + Modal)
+* Conectamos la interfaz gráfica con nuestra máquina de estados del backend (`BORRADOR` -> `CONFIRMADA` -> `CON_INCIDENCIA`).
+* **Decisión de Negocio (El Pop-Up):** Para evitar que a los nutricionistas se les olvidara confirmar los turnos, cambiamos el flujo. En lugar de guardar silenciosamente, al pulsar "Registrar" se abre un **Modal de Confirmación** flotante. Al aceptar, React envía dos peticiones asíncronas consecutivas: crea el turno y lo confirma al instante.
+
+### 12.3. Vista Pedidos y Carrito de la Compra
+* Diseñamos un módulo de ventas B2B con catálogo a la izquierda y carrito dinámico a la derecha.
+* **Reglas de Negocio en Tiempo Real:** 1. El carrito diferencia entre cantidad normal (de pago) y bonificada (gratis).
+  2. Implementamos un aviso visual condicional: Si el importe del carrito es `< 80€`, aparece un aviso amarillo de que no podrá liquidarse. Al superar los 80€, cambia a verde.
+  3. **Auto-liquidación:** Añadimos un botón en el historial de pedidos para que el nutricionista/farmacia pueda liquidar sus propios pedidos, siempre y cuando superen el umbral de los 80€ y se encuentren en estado `PENDIENTE_LIQUIDAR`.

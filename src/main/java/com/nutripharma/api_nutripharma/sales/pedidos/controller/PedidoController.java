@@ -25,7 +25,7 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}/liquidar")
-    @PreAuthorize("hasRole('ADMIN')") // Solo el Admin aprueba las liquidaciones
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')") // Solo el Admin aprueba las liquidaciones
     public ResponseEntity<PedidoResponse> liquidarPedido(@PathVariable Long id) {
         return ResponseEntity.ok(pedidoService.liquidarPedido(id));
     }

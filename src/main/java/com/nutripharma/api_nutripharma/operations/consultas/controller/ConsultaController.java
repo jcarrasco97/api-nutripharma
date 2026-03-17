@@ -37,8 +37,9 @@ public class ConsultaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')") // De momento solo el admin ve el listado global
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')") // <-- Añadido el Nutricionista
     public ResponseEntity<List<ConsultaResponse>> listarTodas() {
         return ResponseEntity.ok(consultaService.obtenerTodas());
     }
+
 }
