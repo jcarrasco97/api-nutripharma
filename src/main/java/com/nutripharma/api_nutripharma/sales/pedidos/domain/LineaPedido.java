@@ -1,0 +1,42 @@
+package com.nutripharma.api_nutripharma.sales.pedidos.domain;
+
+import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "lineas_pedido")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class LineaPedido {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // A qué pedido pertenece esta línea
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pedido_id", nullable = false)
+    private Pedido pedido;
+
+    // Qué producto se está comprando
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "producto_id", nullable = false)
+    private Producto producto;
+
+    @Column(nullable = false)
+    private Integer cantidad;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer bonificados = 0;
+
+    // Guardamos el precio en el momento exacto de la compra (por si el PVF cambia en el futuro)
+    @Column(name = "precio_aplicado", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precioAplicado;
+}

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -12,6 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -21,24 +23,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // 1. Desactivamos CSRF (No es necesario porque usamos tokens JWT)
                 .csrf(csrf -> csrf.disable())
-
-                // 2. Configuración de rutas
                 .authorizeHttpRequests(auth -> auth
-                        // Rutas públicas: El Login debe ser accesible por todos
-                        .requestMatchers("/api/auth/**").permitAll()
-                        // Cualquier otra ruta requerirá estar autenticado
+                        // Rutas públicas: El Login Y LA DOCUMENTACIÓN DE SWAGGER
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        // Cualquier otra ruta (ej. /api/nutricionistas) requerirá estar autenticado
                         .anyRequest().authenticated()
                 )
-
-                // 3. Gestión de sesiones: SIN ESTADO (Stateless)
-                // Spring no guardará la sesión en memoria, exigirá el JWT en cada petición
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
-                // 4. Asignamos nuestro proveedor y nuestro filtro antes del filtro por defecto
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

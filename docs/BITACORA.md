@@ -144,4 +144,42 @@ Diseñamos un Dashboard inteligente que muestra u oculta módulos (Validaciones,
 
 ---
 
-*Estado actual: Flujo de Autenticación JWT completo y Dashboard Dinámico basado en roles finalizado. Siguiente paso: Desarrollo de la lógica de negocio (Backend Controllers).*
+## 🏗️ CAPÍTULO 9: Domain-Driven Design (DDD) y Reestructuración
+
+Para asegurar la escalabilidad del proyecto, realizamos una profunda refactorización guiada por el **Lenguaje Ubicuo (Ubiquitous Language)** del negocio.
+
+### 9.1. Eliminación de Código Muerto
+* **Decisión:** Eliminamos el paquete `clinical/pacientes`.
+* **Razón:** Los datos médicos de los pacientes se gestionan mediante una app de terceros. Mantener código no utilizado (*Dead Code*) en el sistema genera deuda técnica. Nuestro enfoque se centra en la gestión empresarial (ERP/CRM B2B).
+
+### 9.2. Separación entre Seguridad y Organización
+* **Problema Común:** Sobrecargar la entidad `Usuario` con datos de negocio (direcciones, horas de contrato).
+* **Solución (Arquitectura Limpia):** El paquete `security` queda ciego y aislado (solo maneja credenciales). Creamos el paquete `organization` con las entidades `Nutricionista` y `Farmacia`. Ambas se vinculan a sus credenciales mediante una relación `@OneToOne` con `Usuario`.
+
+### 9.3. La Máquina de Estados (Módulo Consultas)
+* **El Problema del "WhatsApp":** Los nutricionistas cometían errores al registrar turnos separados (mañana/tarde) y pedían correcciones manuales por chat.
+* **Solución Técnica:** En el paquete `operations/consultas`, modelamos el Turno con tres estados (`EstadoConsulta` Enum):
+  1. `BORRADOR`: Editable libremente por el nutricionista.
+  2. `CONFIRMADA`: Bloqueada en el backend. Las horas cuentan para el resumen mensual.
+  3. `CON_INCIDENCIA`: Si hay un error, el nutricionista abre incidencia, reporta el mensaje, y solo el Administrador puede editar/desbloquear.
+
+---
+
+## 💰 CAPÍTULO 10: Módulo Financiero (Ventas y Pedidos)
+
+Implementamos la gestión de catálogo y ventas bajo el paquete `sales`.
+
+### 10.1. Manejo de Dinero: La Regla de Oro (BigDecimal)
+* **Decisión Técnica:** Prohibido el uso de `Double` o `Float` para precios, ya que introducen errores de precisión en coma flotante.
+* **Implementación:** Utilizamos `BigDecimal` en la entidad `Producto` (para PVF, PVP e IVA al 10%) asegurando cálculos financieros exactos al céntimo.
+
+### 10.2. Estructura de Pedidos (Cabecera y Líneas)
+* Diseñamos el Pedido separando la "Cabecera" (`Pedido` con `@ManyToOne` a Farmacia y Nutricionista) de los "Detalles" (`LineaPedido`).
+* Se "congela" el precio en el momento exacto de la compra guardándolo en `precioAplicado`, protegiendo el historial frente a futuros cambios de precio en el Catálogo.
+
+### 10.3. Regla de Negocio: Umbral de Liquidación
+* Implementamos una validación dura en el `PedidoService`: Un pedido en estado `PENDIENTE_LIQUIDAR` no puede pasar a `LIQUIDADO` si la suma total de las líneas (ignorando productos bonificados) es menor a **80€**. De intentarlo, el backend lanza una `IllegalStateException` abortando la transacción.
+
+---
+
+*Estado actual: Cimientos de Base de Datos y APIs CRUD operativas para Organización, Operaciones y Ventas. Siguiente paso: Desarrollo del motor matemático (Resúmenes Mensuales) y conexión con Frontend React.*

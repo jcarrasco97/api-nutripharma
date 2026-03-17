@@ -1,0 +1,50 @@
+package com.nutripharma.api_nutripharma.sales.catalogo.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "productos")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Producto {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "nombre_producto", nullable = false, length = 150)
+    private String nombreProducto;
+
+    @Column(nullable = false, length = 20)
+    private String acronimo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CategoriaProducto categoria;
+
+    @Column(nullable = false, unique = true, length = 50)
+    private String referencia;
+
+    // BigDecimal para precisión financiera exacta. Precision 10, 2 decimales.
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal pvf;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal pvp;
+
+    // El IVA por defecto al 10% (0.10)
+    @Builder.Default
+    @Column(nullable = false, precision = 4, scale = 2)
+    private BigDecimal iva = new BigDecimal("0.10");
+
+    // Para diferenciar los que tienen stock en el frontend
+    @Builder.Default
+    @Column(name = "hay_existencias", nullable = false)
+    private Boolean hayExistencias = true;
+}
