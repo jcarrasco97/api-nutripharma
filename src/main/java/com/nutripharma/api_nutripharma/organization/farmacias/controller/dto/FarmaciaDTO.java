@@ -1,4 +1,4 @@
-package com.nutripharma.api_nutripharma.organization.farmacias.controller;
+package com.nutripharma.api_nutripharma.organization.farmacias.controller.dto;
 
 public class FarmaciaDTO {
 
@@ -15,6 +15,7 @@ public class FarmaciaDTO {
             String email,
             String nombre,
             String cif,
-            String direccion
+            String direccion,
+            Double saldoVirtual // <-- NUEVO CAMPO
     ) {}
 }

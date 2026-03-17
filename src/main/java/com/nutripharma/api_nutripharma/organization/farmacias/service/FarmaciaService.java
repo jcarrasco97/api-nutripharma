@@ -1,7 +1,7 @@
 package com.nutripharma.api_nutripharma.organization.farmacias.service;
 
-import com.nutripharma.api_nutripharma.organization.farmacias.controller.FarmaciaDTO.FarmaciaRequest;
-import com.nutripharma.api_nutripharma.organization.farmacias.controller.FarmaciaDTO.FarmaciaResponse;
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaRequest;
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
@@ -52,6 +52,7 @@ public class FarmaciaService {
                 .nombre(request.nombre())
                 .cif(request.cif())
                 .direccion(request.direccion())
+                // El builder por defecto ya pone saldoVirtual a 0.0, pero Spring lo gestiona
                 .build();
         Farmacia guardada = farmaciaRepository.save(nuevaFarmacia);
 
@@ -69,7 +70,8 @@ public class FarmaciaService {
                 f.getUsuario().getEmail(),
                 f.getNombre(),
                 f.getCif(),
-                f.getDireccion()
+                f.getDireccion(),
+                f.getSaldoVirtual() // <-- ¡AQUÍ ESTÁ LA PIEZA QUE FALTABA!
         );
     }
 }

@@ -31,5 +31,7 @@ public class Farmacia {
     @Column(length = 255)
     private String direccion;
 
-    // Aquí podríamos añadir en el futuro el saldo de liquidación, configuración de umbral, etc.
+    @Column(name = "saldo_virtual", nullable = false)
+    @Builder.Default
+    private Double saldoVirtual = 0.0;
 }

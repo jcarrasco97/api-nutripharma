@@ -12,7 +12,8 @@ public class PedidoDTO {
     public record LineaPedidoRequest(
             Long productoId,
             Integer cantidad,
-            Integer bonificados
+            Integer bonificados,
+            Boolean pagadoConSaldo // <-- NUEVO CAMPO
     ) {}
 
     public record PedidoRequest(
@@ -29,7 +30,8 @@ public class PedidoDTO {
             Integer cantidad,
             Integer bonificados,
             BigDecimal precioAplicado,
-            BigDecimal subtotal // cantidad * precioAplicado
+            BigDecimal subtotal, // cantidad * precioAplicado
+            Boolean pagadoConSaldo // <-- NUEVO CAMPO
     ) {}
 
     public record PedidoResponse(

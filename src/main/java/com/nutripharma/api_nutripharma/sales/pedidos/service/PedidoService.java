@@ -29,7 +29,7 @@ public class PedidoService {
     private final NutricionistaRepository nutricionistaRepository;
     private final ProductoRepository productoRepository;
 
-    // Umbral mínimo de liquidación fijado por negocio (En el futuro podría venir de la BD)
+    // Umbral mínimo de liquidación fijado por negocio
     private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
 
     @Transactional
@@ -43,7 +43,6 @@ public class PedidoService {
                     .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
         }
 
-        // 1. Crear la cabecera del pedido
         Pedido nuevoPedido = Pedido.builder()
                 .farmacia(farmacia)
                 .nutricionista(nutricionista)
@@ -52,20 +51,53 @@ public class PedidoService {
                 .lineas(new ArrayList<>())
                 .build();
 
-        // 2. Procesar las líneas de pedido
+        // Contadores para la regla de la "Doble Cesta"
+        BigDecimal totalReal = BigDecimal.ZERO;
+        BigDecimal totalSaldo = BigDecimal.ZERO;
+
+        // 1. Procesar las líneas de pedido y separar los totales
         for (LineaPedidoRequest lineaReq : request.lineas()) {
             Producto producto = productoRepository.findById(lineaReq.productoId())
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + lineaReq.productoId()));
+
+            boolean pagadoConSaldo = lineaReq.pagadoConSaldo() != null && lineaReq.pagadoConSaldo();
+            BigDecimal subtotal = producto.getPvf().multiply(new BigDecimal(lineaReq.cantidad()));
+
+            if (pagadoConSaldo) {
+                totalSaldo = totalSaldo.add(subtotal);
+            } else {
+                totalReal = totalReal.add(subtotal);
+            }
 
             LineaPedido linea = LineaPedido.builder()
                     .pedido(nuevoPedido)
                     .producto(producto)
                     .cantidad(lineaReq.cantidad())
                     .bonificados(lineaReq.bonificados())
-                    .precioAplicado(producto.getPvf()) // Congelamos el precio de Venta a Farmacia
+                    .precioAplicado(producto.getPvf())
+                    .pagadoConSaldo(pagadoConSaldo) // <- Guardamos la marca de cómo se pagó
                     .build();
 
             nuevoPedido.getLineas().add(linea);
+        }
+
+        // 2. Aplicar las Reglas de Negocio del Monedero Virtual
+        if (totalSaldo.compareTo(BigDecimal.ZERO) > 0) {
+            // Regla A: El pedido real debe llegar a 80€ para desbloquear el saldo
+            if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
+                throw new IllegalStateException("Para poder usar el saldo virtual, el importe en dinero real debe ser igual o superior a " + UMBRAL_LIQUIDACION + "€. (Actual: " + totalReal + "€)");
+            }
+
+            // Regla B: La farmacia debe tener saldo suficiente
+            BigDecimal saldoDisponible = BigDecimal.valueOf(farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0);
+            if (saldoDisponible.compareTo(totalSaldo) < 0) {
+                throw new IllegalStateException("La farmacia no tiene saldo virtual suficiente. Requerido: " + totalSaldo + "€, Disponible: " + saldoDisponible + "€.");
+            }
+
+            // Regla C: Descontar el dinero del monedero de la farmacia
+            BigDecimal nuevoSaldo = saldoDisponible.subtract(totalSaldo);
+            farmacia.setSaldoVirtual(nuevoSaldo.doubleValue());
+            farmaciaRepository.save(farmacia);
         }
 
         return mapToResponse(pedidoRepository.save(nuevoPedido));
@@ -80,12 +112,11 @@ public class PedidoService {
             throw new IllegalStateException("El pedido ya se encuentra liquidado.");
         }
 
-        // Calcular el total para validar la regla de negocio
-        BigDecimal total = calcularTotalPedido(pedido);
+        // Validamos que el dinero real pagado llegue al mínimo para poder liquidar el pedido principal
+        BigDecimal totalReal = calcularTotalRealPedido(pedido);
 
-        // Validar umbral de 80€
-        if (total.compareTo(UMBRAL_LIQUIDACION) < 0) {
-            throw new IllegalStateException("No se puede liquidar. El pedido no alcanza el mínimo de " + UMBRAL_LIQUIDACION + "€. Total actual: " + total + "€.");
+        if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
+            throw new IllegalStateException("No se puede liquidar. El importe real del pedido no alcanza el mínimo de " + UMBRAL_LIQUIDACION + "€. Total actual: " + totalReal + "€.");
         }
 
         pedido.setEstado(EstadoPedido.LIQUIDADO);
@@ -99,8 +130,10 @@ public class PedidoService {
 
     // --- MÉTODOS AUXILIARES ---
 
-    private BigDecimal calcularTotalPedido(Pedido pedido) {
+    private BigDecimal calcularTotalRealPedido(Pedido pedido) {
+        // Ahora solo sumamos los productos que NO se pagaron con saldo virtual
         return pedido.getLineas().stream()
+                .filter(linea -> linea.getPagadoConSaldo() == null || !linea.getPagadoConSaldo())
                 .map(linea -> linea.getPrecioAplicado().multiply(new BigDecimal(linea.getCantidad())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -113,7 +146,8 @@ public class PedidoService {
                         l.getCantidad(),
                         l.getBonificados(),
                         l.getPrecioAplicado(),
-                        l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())) // subtotal
+                        l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())), // subtotal
+                        l.getPagadoConSaldo() != null && l.getPagadoConSaldo() // <- Lo enviamos al Frontend
                 )).collect(Collectors.toList());
 
         return new PedidoResponse(
@@ -122,7 +156,7 @@ public class PedidoService {
                 p.getNutricionista() != null ? p.getNutricionista().getNombre() : null,
                 p.getFechaPedido(),
                 p.getEstado(),
-                calcularTotalPedido(p), // Total global
+                calcularTotalRealPedido(p), // Total global (EXCLUSIVO dinero real)
                 lineasResponse
         );
     }

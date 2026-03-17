@@ -28,6 +28,8 @@ public class SuministroController {
     public ResponseEntity<PeticionResponse> crearPeticion(@RequestBody PeticionRequest req) { return ResponseEntity.ok(service.crearPeticion(req)); }
 
     @GetMapping("/peticiones")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<PeticionResponse>> listarPeticiones() { return ResponseEntity.ok(service.listarPeticiones()); }
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')") // <-- Añadido el Nutricionista
+    public ResponseEntity<List<PeticionResponse>> listarPeticiones() {
+        return ResponseEntity.ok(service.listarPeticiones());
+    }
 }

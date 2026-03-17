@@ -39,4 +39,8 @@ public class LineaPedido {
     // Guardamos el precio en el momento exacto de la compra (por si el PVF cambia en el futuro)
     @Column(name = "precio_aplicado", nullable = false, precision = 10, scale = 2)
     private BigDecimal precioAplicado;
+
+    @Column(name = "pagado_con_saldo", nullable = false)
+    @Builder.Default
+    private Boolean pagadoConSaldo = false; // true si va en la 2ª cesta
 }

@@ -70,3 +70,42 @@ El sistema presenta un menú lateral dinámico condicionado por el rol del usuar
 ### 2.5. Módulo: Documentación
 * Repositorio de lectura y descarga de PDFs/Manuales para Nutricionistas y Farmacias.
 * Gestión de subida/borrado exclusiva para el Administrador.
+* ## APÉNDICE A: Modelo Financiero y Normativa Legal (Andalucía)
+
+### A.1. Contexto Legal (Servicios Externos)
+Debido a la normativa vigente en Andalucía, las farmacias no pueden ofrecer servicios de nutrición directa y facturarlos como propios. Por tanto, NutriPharma actúa como una **empresa de servicios externos**. Las nutricionistas son empleadas de NutriPharma que se desplazan a la farmacia (que actúa únicamente como espacio físico cedido).
+
+### A.2. Tarifario de Consultas
+Cada vez que una nutricionista registra un turno (cierra una consulta), el sistema debe calcular el dinero generado basándose en el siguiente tarifario fijo a cobrar al paciente:
+* **Consulta Nueva:** 25,00 €
+* **Revisión:** 20,00 €
+* **Promocional:** 0,00 € (Gratuita)
+* **Personal de Farmacia:** 0,00 € (Gratuita)
+
+### A.3. Reparto de Beneficios (Modelo 70/30)
+El dinero generado en la farmacia durante el turno se divide por contrato:
+* **70% para NutriPharma:** Beneficio directo de la empresa por el servicio prestado.
+* **30% para la Farmacia:** Comisión por la cesión del espacio físico y la captación del cliente.
+
+### A.4. El "Monedero Virtual" de la Farmacia (Liquidación Legal)
+Por restricciones legales, NutriPharma **no puede ingresar directamente el 30%** en efectivo o transferencia a la cuenta de la farmacia.
+* **Regla de Negocio:** Ese 30% se acumula en el sistema como un **"Saldo Virtual"** a favor de la farmacia.
+* **Uso del Saldo:** La farmacia solo puede canjear este saldo virtual obteniendo productos físicos gratuitos de NutriPharma.
+* **Condición de Desbloqueo (Regla de los 80€):** Para que una farmacia pueda aplicar su "Saldo Virtual" y llevarse productos gratis, está obligada a realizar un **pedido mínimo al por mayor de 80,00 €** (dinero real que pagan a NutriPharma). Si el pedido supera los 80€, pueden añadir productos extra y pagarlos con su saldo virtual.
+* *Beneficio final de la Farmacia:* Vender esos productos conseguidos "gratis" a sus pacientes a Precio de Venta al Público (PVP), obteniendo así su comisión de forma legal (en especie).
+
+### A.5. Sistema de Incentivos de Nutricionistas (Complementos Salariales)
+El salario de las nutricionistas no es únicamente fijo. Su panel de "Resumen" debe reflejar dos métricas que afectan a su nómina a final de mes:
+1.  **Bolsa de Horas:** Comparativa de horas reales trabajadas en los turnos vs. las horas estipuladas en su contrato.
+2.  **Comisiones por Ventas:** Un porcentaje (bonus) asignado a la nutricionista en función del volumen en euros de los pedidos al por mayor que la farmacia donde ella trabaja realiza a NutriPharma. *(Fórmula exacta y porcentajes a definir en siguientes fases).*
+* 
+* ### A.6. Flujo Unificado de Pedidos y Liquidación (La "Doble Cesta")
+Para resolver el conflicto de intereses entre las bonificaciones de las nutricionistas y las liquidaciones de las farmacias, el sistema de ventas unifica ambos procesos en una sola pantalla mediante la mecánica de "Doble Cesta":
+
+1. **Cesta Principal (Pago Real):** Contiene los productos que la farmacia paga a NutriPharma. Estos productos **SÍ** computan para el cálculo del bonus de la nutricionista.
+2. **Desbloqueo del Saldo Virtual:** Cuando el importe total de la Cesta Principal alcanza o supera los 80,00 €, se desbloquea el acceso al "Saldo Virtual" de la farmacia.
+3. **Cesta de Liquidación (Pago con Saldo):** Una vez desbloqueado, aparece un segundo botón de acción en el catálogo. Los productos añadidos mediante este botón van a una "Cesta de Liquidación".
+  * Estos productos **NO** suman coste económico al pedido.
+  * Su valor de Venta a Farmacia (PVF) se resta en tiempo real del Saldo Virtual disponible de la farmacia.
+  * **Restricción:** No se puede añadir un producto a esta cesta si su valor supera el saldo virtual remanente.
+  * Estos productos **NO** computan para el bonus de la nutricionista.

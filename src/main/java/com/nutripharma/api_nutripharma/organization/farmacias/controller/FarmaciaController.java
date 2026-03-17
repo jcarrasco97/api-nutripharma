@@ -1,7 +1,7 @@
 package com.nutripharma.api_nutripharma.organization.farmacias.controller;
 
-import com.nutripharma.api_nutripharma.organization.farmacias.controller.FarmaciaDTO.FarmaciaRequest;
-import com.nutripharma.api_nutripharma.organization.farmacias.controller.FarmaciaDTO.FarmaciaResponse;
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaRequest;
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.service.FarmaciaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
