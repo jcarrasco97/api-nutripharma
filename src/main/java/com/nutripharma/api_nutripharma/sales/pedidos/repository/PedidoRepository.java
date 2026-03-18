@@ -17,4 +17,6 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             LocalDate fechaInicio,
             LocalDate fechaFin
     );
+    List<Pedido> findByNutricionistaUsuarioEmail(String email);
+    List<Pedido> findByFarmaciaUsuarioEmail(String email);
 }

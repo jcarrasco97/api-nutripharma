@@ -128,6 +128,21 @@ public class PedidoService {
         return pedidoRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> obtenerMisPedidos(String email) {
+        // Intentamos buscar pedidos donde el email sea de la farmacia O del nutricionista
+        List<Pedido> pedidos = pedidoRepository.findByNutricionistaUsuarioEmail(email);
+
+        if (pedidos.isEmpty()) {
+            pedidos = pedidoRepository.findByFarmaciaUsuarioEmail(email);
+        }
+
+        return pedidos.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+
     // --- MÉTODOS AUXILIARES ---
 
     private BigDecimal calcularTotalRealPedido(Pedido pedido) {

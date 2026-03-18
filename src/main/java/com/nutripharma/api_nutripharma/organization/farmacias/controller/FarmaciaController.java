@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/farmacias")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173") // <--- ¡AÑADE ESTO!
 public class FarmaciaController {
 
     private final FarmaciaService farmaciaService;
@@ -25,8 +26,16 @@ public class FarmaciaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')") // Los Nutris necesitan ver la lista para elegir farmacia en su turno
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')")
+    // Los Nutris necesitan ver la lista para elegir farmacia en su turno
     public ResponseEntity<List<FarmaciaResponse>> listarTodas() {
         return ResponseEntity.ok(farmaciaService.obtenerTodas());
+    }
+
+    // Añade este endpoint debajo de los que ya tienes:
+    @GetMapping("/perfil/me")
+    @PreAuthorize("hasRole('FARMACIA')")
+    public ResponseEntity<FarmaciaResponse> obtenerMiPerfil(java.security.Principal principal) {
+        return ResponseEntity.ok(farmaciaService.obtenerMiPerfil(principal.getName()));
     }
 }

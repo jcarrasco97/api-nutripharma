@@ -9,17 +9,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/nutricionistas")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173") // <-- TRAMPA 2 SOLUCIONADA
 public class NutricionistaController {
 
     private final NutricionistaService nutricionistaService;
 
     @PostMapping
-    // ¡Seguridad! Solo los usuarios que tengan el rol ADMIN pueden ejecutar este endpoint
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<NutricionistaResponse> registrarNutricionista(@RequestBody NutricionistaRequest request) {
         NutricionistaResponse response = nutricionistaService.crearNutricionista(request);
@@ -36,5 +37,12 @@ public class NutricionistaController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<NutricionistaResponse> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(nutricionistaService.obtenerPorId(id));
+    }
+
+    // --- TRAMPA 1 SOLUCIONADA (Cambiado a /perfil/me) ---
+    @GetMapping("/perfil/me")
+    @PreAuthorize("hasRole('NUTRICIONISTA')")
+    public ResponseEntity<NutricionistaResponse> obtenerMiPerfil(Principal principal) {
+        return ResponseEntity.ok(nutricionistaService.obtenerMiPerfil(principal.getName()));
     }
 }

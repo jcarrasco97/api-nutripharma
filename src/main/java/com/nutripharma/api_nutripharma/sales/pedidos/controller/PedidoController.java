@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/pedidos")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173") // <--- ¡ETIQUETA SALVAVIDAS!
 public class PedidoController {
 
     private final PedidoService pedidoService;
@@ -25,7 +26,7 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}/liquidar")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')") // Solo el Admin aprueba las liquidaciones
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
     public ResponseEntity<PedidoResponse> liquidarPedido(@PathVariable Long id) {
         return ResponseEntity.ok(pedidoService.liquidarPedido(id));
     }
@@ -34,5 +35,12 @@ public class PedidoController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
     public ResponseEntity<List<PedidoResponse>> listarTodos() {
         return ResponseEntity.ok(pedidoService.listarTodos());
+    }
+
+    // En PedidoController.java asegura que esté así:
+    @GetMapping("/mis-pedidos")
+    @PreAuthorize("hasRole('NUTRICIONISTA') or hasRole('FARMACIA')") // <-- OJO: Añade 'FARMACIA' aquí
+    public ResponseEntity<List<PedidoResponse>> obtenerMisPedidos(java.security.Principal principal) {
+        return ResponseEntity.ok(pedidoService.obtenerMisPedidos(principal.getName()));
     }
 }

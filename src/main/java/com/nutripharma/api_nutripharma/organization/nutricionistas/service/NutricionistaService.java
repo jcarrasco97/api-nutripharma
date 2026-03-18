@@ -90,6 +90,13 @@ public class NutricionistaService {
         return mapToResponse(nutricionista);
     }
 
+    @Transactional(readOnly = true)
+    public NutricionistaResponse obtenerMiPerfil(String email) {
+        Nutricionista nutricionista = nutricionistaRepository.findByUsuarioEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Perfil de nutricionista no encontrado."));
+        return mapToResponse(nutricionista);
+    }
+
     // Método auxiliar para no repetir código de mapeo
     private NutricionistaResponse mapToResponse(Nutricionista n) {
         return new NutricionistaResponse(
@@ -101,4 +108,6 @@ public class NutricionistaService {
                 n.getHorasContratoMensual()
         );
     }
+
+
 }

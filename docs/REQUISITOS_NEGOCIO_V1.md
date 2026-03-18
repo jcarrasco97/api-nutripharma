@@ -109,3 +109,27 @@ Para resolver el conflicto de intereses entre las bonificaciones de las nutricio
   * Su valor de Venta a Farmacia (PVF) se resta en tiempo real del Saldo Virtual disponible de la farmacia.
   * **Restricción:** No se puede añadir un producto a esta cesta si su valor supera el saldo virtual remanente.
   * Estos productos **NO** computan para el bonus de la nutricionista.
+
+### A.7. Automatización de Productos Bonificados (Regla Comercial)
+Para proteger el margen de beneficio de la empresa, las unidades bonificadas (gratuitas) no se pueden elegir manualmente por las nutricionistas. El sistema las calcula en tiempo real según la Cesta Principal usando un algoritmo de asignación máxima:
+* Por cada **100** unidades compradas ➔ **20** bonificados.
+* Por cada **20** unidades compradas ➔ **5** bonificados.
+* Por cada **10** unidades compradas ➔ **2** bonificados.
+* Por cada **6** unidades compradas ➔ **1** bonificado.
+* *Nota: En el Panel de Administración se podrán sobrescribir estos valores manualmente para reflejar acuerdos comerciales telefónicos.*
+
+### A.8. Trazabilidad del Historial de Pedidos
+El historial de pedidos en el panel de usuario dejará de ser estático y se convertirá en una herramienta de consulta analítica:
+* Mostrará todos los pedidos sin límite arbitrario de cantidad.
+* Estará ordenado por defecto de **Más Reciente a Más Antiguo**.
+* Contará con un doble sistema de filtrado:
+  1. **Filtrado temporal:** Por mes (YYYY-MM).
+  2. **Ordenación:** Cronológica (Asc/Desc) y por Importe Económico (Asc/Desc).
+
+### A.9. Sistema de Incentivos de Nutricionistas (Modelo Proporcional)
+El cálculo de nóminas y comisiones se rige por una tabla base de 40 horas semanales. El sistema multiplicará estos valores por el factor de jornada de la nutricionista (ej. 32h = factor 0.8).
+* **Facturación Computable:** Se suma el importe de las Consultas Nuevas (25€), Revisiones (20€) y Pedidos B2B (Solo Cesta Principal; los productos pagados con Monedero Virtual no computan).
+* **Tramos Base (40h):**
+  * **OB1:** Meta 5.000€ (Mín. Prod 800€) ➔ Bono Fijo 200€
+  * **OB2:** Meta 6.800€ (Mín. Prod 1.000€) ➔ Bono Fijo 400€ + 5% del exceso.
+  * **OB3:** Meta 8.700€ (Mín. Prod 1.200€) ➔ Bono Fijo 600€ + 10% del exceso.

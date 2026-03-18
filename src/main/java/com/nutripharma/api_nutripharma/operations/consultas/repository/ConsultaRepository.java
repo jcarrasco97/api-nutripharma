@@ -15,6 +15,7 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
     List<Consulta> findByNutricionistaId(Long nutricionistaId);
 
     List<Consulta> findByFarmaciaId(Long farmaciaId);
+
     // Busca las consultas de un nutricionista, que estén confirmadas, en un rango de fechas
     List<Consulta> findByNutricionistaIdAndEstadoAndFechaBetween(
             Long nutricionistaId,
@@ -22,4 +23,6 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
             LocalDate fechaInicio,
             LocalDate fechaFin
     );
+
+    List<Consulta> findByNutricionistaUsuarioEmail(String email);
 }

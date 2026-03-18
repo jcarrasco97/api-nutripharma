@@ -208,3 +208,69 @@ Transformamos el `Dashboard.jsx` de una simple cuadrícula a un **Layout Profesi
 * **Reglas de Negocio en Tiempo Real:** 1. El carrito diferencia entre cantidad normal (de pago) y bonificada (gratis).
   2. Implementamos un aviso visual condicional: Si el importe del carrito es `< 80€`, aparece un aviso amarillo de que no podrá liquidarse. Al superar los 80€, cambia a verde.
   3. **Auto-liquidación:** Añadimos un botón en el historial de pedidos para que el nutricionista/farmacia pueda liquidar sus propios pedidos, siempre y cuando superen el umbral de los 80€ y se encuentren en estado `PENDIENTE_LIQUIDAR`.
+## 🎭 CAPÍTULO 13: Autenticación Dinámica y RBAC Avanzado
+
+Hasta ahora, la aplicación funcionaba con "ruedines" (usábamos un `NUTRICIONISTA_ID = 1` fijo en el código para hacer pruebas). Ha llegado el momento de conectar la identidad real del usuario con sus acciones.
+
+### 13.1. Identidad a través del Token (`/perfil/me`)
+
+* **El Problema:** El Frontend necesita saber quién es exactamente el usuario conectado para no mostrarle datos de otros.
+* **La Solución (Backend):** Creamos endpoints específicos en `NutricionistaController` y `FarmaciaController` llamados `/perfil/me`. Usando `java.security.Principal`, el backend extrae el email del token interceptado, busca el perfil exacto en la base de datos (`findByUsuarioEmail`) y lo devuelve al Frontend.
+* **Seguridad:** Protegimos meticulosamente cada ruta con `@PreAuthorize("hasRole('...')")` para que una Farmacia no pueda acceder a rutas de Nutricionista (provocando los famosos errores `403 Forbidden` como medida de defensa activa).
+
+### 13.2. Bifurcación de Vistas por Rol
+
+Modificamos el `Dashboard.jsx` para que no solo oculte botones en el menú, sino que cambie los componentes que se renderizan.
+
+* **Creamos VistaResumenFarmacia.jsx:** Un panel de bienvenida diseñado específicamente para el rol `FARMACIA`. Al contrario que el nutricionista (que ve gráficos de rendimiento), la farmacia ve en números gigantes su Saldo Virtual disponible y un botón directo para comprar, reduciendo la fricción (UX).
+
+---
+
+## 🛒 CAPÍTULO 14: La "Doble Cesta" y Lógica Financiera Compleja
+
+El módulo de Pedidos (`VistaPedidos.jsx`) ha evolucionado para convertirse en el componente más complejo de nuestra aplicación, manejando múltiples reglas de negocio en tiempo real.
+
+### 14.1. El Algoritmo de la Doble Cesta
+
+* **Requisito de Negocio:** Una farmacia puede pagar un mismo pedido usando dinero real y saldo virtual (generado por las comisiones del nutricionista).
+* **Solución en React:** Modificamos el carrito de compras para que cada línea de pedido tenga un flag booleano `pagadoConSaldo`. El algoritmo separa visualmente y matemáticamente el carrito en dos:
+  * **Total Real:** Suma los productos normales.
+  * **Total Virtual:** Suma los productos marcados para pagar con monedero.
+
+### 14.2. Bloqueos y Umbrales en Tiempo Real
+
+Aplicamos las mismas reglas de negocio del Backend en el Frontend para dar feedback inmediato al usuario:
+
+* **Umbral de 80€:** Bloqueamos los botones de "Pagar con Saldo" hasta que la suma del "Total Real" alcance los 80€. Mostramos una barra de progreso visual (UX) indicando cuánto dinero real falta para desbloquear el monedero.
+* **Protección de Saldo:** Evitamos que el usuario añada productos virtuales si superan el saldo que tiene disponible en ese momento.
+
+### 14.3. Pedidos Contextuales
+
+Hicimos que la vista de Pedidos fuera inteligente:
+
+* Si entra una **Nutricionista**, le aparece un desplegable para elegir a qué farmacia le está haciendo el pedido.
+* Si entra una **Farmacia**, el desplegable desaparece automáticamente. El sistema asume su identidad en base a su perfil y oculta la complejidad.
+
+---
+
+## 📅 CAPÍTULO 15: Refinamiento del Módulo de Consultas (Turnos)
+
+Las consultas nutricionales son el núcleo de la recolección de datos, por lo que blindamos su registro y visualización.
+
+### 15.1. Personalización de la Agenda
+
+* Sustituimos la llamada genérica `listarTodas()` por `obtenerMisConsultas()`.
+* **Beneficio:** Alivianamos la carga de la base de datos y garantizamos la privacidad. La Nutricionista "A" jamás verá el historial de turnos de la Nutricionista "B".
+
+### 15.2. Preservación de Métricas Clave
+
+* Mantuvimos intacto el formulario de registro que captura los KPIs vitales del negocio: **Nuevas, Revisiones, Promociones y Personal de Farmacia**.
+* Implementamos una validación en React que bloquea el envío si el usuario intenta registrar un turno en una fecha futura, protegiendo la integridad temporal de la base de datos.
+
+### 15.3. Herramientas de Productividad (Buscador y Filtros)
+
+Enriquecimos el Historial de Turnos de la Nutricionista:
+
+* Añadimos un **Buscador en tiempo real** (barra de búsqueda) para filtrar los turnos por el nombre de la farmacia.
+* Implementamos un **Filtro de Meses dinámico**: React lee todas las fechas de los turnos descargados, extrae los meses únicos usando un `Set`, y genera un menú desplegable para aislar el historial por meses.
+* Añadimos **ordenación cronológica** (Más recientes / Más antiguos).

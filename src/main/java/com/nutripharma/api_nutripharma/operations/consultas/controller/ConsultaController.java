@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/consultas")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173") // <--- ¡ETIQUETA SALVAVIDAS!
 public class ConsultaController {
 
     private final ConsultaService consultaService;
@@ -37,9 +38,14 @@ public class ConsultaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')") // <-- Añadido el Nutricionista
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')")
     public ResponseEntity<List<ConsultaResponse>> listarTodas() {
         return ResponseEntity.ok(consultaService.obtenerTodas());
     }
 
+    @GetMapping("/mis-consultas")
+    @PreAuthorize("hasRole('NUTRICIONISTA')")
+    public ResponseEntity<List<ConsultaResponse>> obtenerMisConsultas(java.security.Principal principal) {
+        return ResponseEntity.ok(consultaService.obtenerMisConsultas(principal.getName()));
+    }
 }

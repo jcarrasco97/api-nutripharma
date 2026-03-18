@@ -64,6 +64,13 @@ public class FarmaciaService {
         return farmaciaRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public FarmaciaResponse obtenerMiPerfil(String email) {
+        Farmacia farmacia = farmaciaRepository.findByUsuarioEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Perfil de farmacia no encontrado."));
+        return mapToResponse(farmacia);
+    }
+
     private FarmaciaResponse mapToResponse(Farmacia f) {
         return new FarmaciaResponse(
                 f.getId(),

@@ -106,6 +106,14 @@ public class ConsultaService {
         return consultaRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ConsultaResponse> obtenerMisConsultas(String email) {
+        return consultaRepository.findByNutricionistaUsuarioEmail(email)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private ConsultaResponse mapToResponse(Consulta c) {
         return new ConsultaResponse(
                 c.getId(),

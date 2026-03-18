@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface FarmaciaRepository extends JpaRepository<Farmacia, Long> {
     boolean existsByCif(String cif);
+
+    java.util.Optional<Farmacia> findByUsuarioEmail(String email);
 }
