@@ -23,41 +23,93 @@ public class SuministroService {
     private final PeticionSuministroRepository peticionRepository;
     private final NutricionistaRepository nutricionistaRepository;
 
-    // --- CATÁLOGO DE MATERIALES (Admin) ---
+    // --- CATÁLOGO DE MATERIALES ---
     @Transactional
     public MaterialResponse crearMaterial(MaterialRequest req) {
         Material m = materialRepository.save(Material.builder().nombre(req.nombre()).cantidadEstandar(req.cantidadEstandar()).build());
-        return new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar());
+        return new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar(), true);
     }
 
     @Transactional(readOnly = true)
-    public List<MaterialResponse> listarMateriales() {
-        return materialRepository.findAll().stream().map(m -> new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar())).toList();
+    public List<MaterialResponse> listarMateriales(String email) {
+        List<Material> todosLosMateriales = materialRepository.findAll();
+
+        // REGLA ANTI-SPAM: Buscamos qué tiene bloqueado esta nutricionista
+        List<Long> materialesBloqueados = peticionRepository.findMaterialesBloqueadosParaNutricionista(email);
+
+        return todosLosMateriales.stream()
+                .map(m -> new MaterialResponse(
+                        m.getId(),
+                        m.getNombre(),
+                        m.getCantidadEstandar(),
+                        !materialesBloqueados.contains(m.getId()) // Si está bloqueado, devolvemos disponible = false
+                )).toList();
     }
 
     // --- PETICIONES (Nutricionistas) ---
     @Transactional
-    public PeticionResponse crearPeticion(PeticionRequest req) {
-        Nutricionista n = nutricionistaRepository.findById(req.nutricionistaId()).orElseThrow();
+    public PeticionResponse crearPeticion(String email, PeticionRequest req) {
+        Nutricionista n = nutricionistaRepository.findByUsuarioEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada."));
+
+        // Validación Anti-Spam en Backend (por si hackean el Frontend)
+        List<Long> bloqueados = peticionRepository.findMaterialesBloqueadosParaNutricionista(email);
+        boolean intentoIlegal = req.materialIds().stream().anyMatch(bloqueados::contains);
+
+        if (intentoIlegal) {
+            throw new IllegalStateException("No puedes solicitar materiales que ya están en estado SOLICITADO.");
+        }
+
         List<Material> materiales = materialRepository.findAllById(req.materialIds());
 
         PeticionSuministro p = PeticionSuministro.builder()
                 .nutricionista(n)
                 .fechaPeticion(LocalDate.now())
-                .estado(EstadoPeticion.PENDIENTE)
+                .estado(EstadoPeticion.SOLICITADO) // Nuevo estado del PRD
                 .materialesSolicitados(materiales)
                 .build();
+
         return mapPeticion(peticionRepository.save(p));
     }
 
     @Transactional(readOnly = true)
-    public List<PeticionResponse> listarPeticiones() {
-        return peticionRepository.findAll().stream().map(this::mapPeticion).toList();
+    public List<PeticionResponse> obtenerMisPeticiones(String email) {
+        // Historial individual filtrado desde la Base de Datos
+        return peticionRepository.findByNutricionistaUsuarioEmailOrderByFechaPeticionDesc(email)
+                .stream().map(this::mapPeticion).toList();
     }
 
     private PeticionResponse mapPeticion(PeticionSuministro p) {
         List<MaterialResponse> mats = p.getMaterialesSolicitados().stream()
-                .map(m -> new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar())).toList();
+                .map(m -> new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar(), true)).toList();
+
         return new PeticionResponse(p.getId(), p.getNutricionista().getNombre(), p.getFechaPeticion(), p.getEstado(), mats);
+    }
+    // --- MÉTODOS EXCLUSIVOS PARA EL ADMIN ---
+
+    @Transactional(readOnly = true)
+    public List<PeticionResponse> listarTodasPeticionesAdmin() {
+        // Obtenemos todas las peticiones del sistema
+        return peticionRepository.findAll()
+                .stream()
+                // Ordenamos para que las SOLICITADAS salgan primero
+                .sorted((a, b) -> {
+                    if (a.getEstado() == EstadoPeticion.SOLICITADO && b.getEstado() != EstadoPeticion.SOLICITADO)
+                        return -1;
+                    if (a.getEstado() != EstadoPeticion.SOLICITADO && b.getEstado() == EstadoPeticion.SOLICITADO)
+                        return 1;
+                    return b.getFechaPeticion().compareTo(a.getFechaPeticion());
+                })
+                .map(this::mapPeticion)
+                .toList();
+    }
+
+    @Transactional
+    public PeticionResponse actualizarEstadoPeticion(Long id, String nuevoEstado) {
+        PeticionSuministro peticion = peticionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Petición no encontrada"));
+
+        peticion.setEstado(EstadoPeticion.valueOf(nuevoEstado.toUpperCase()));
+        return mapPeticion(peticionRepository.save(peticion));
     }
 }

@@ -24,5 +24,9 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
             LocalDate fechaFin
     );
 
+    // --- NUEVO MÉTODO PARA FARMACIAS ---
+    // Busca las consultas realizadas en una farmacia usando el email de su cuenta
+    List<Consulta> findByFarmaciaUsuarioEmailOrderByFechaDesc(String email);
+
     List<Consulta> findByNutricionistaUsuarioEmail(String email);
 }

@@ -1,8 +1,8 @@
 package com.nutripharma.api_nutripharma.documents.documentacion.domain;
 
+import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDate;
 
 @Entity
@@ -18,15 +18,23 @@ public class Documento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
-    private String titulo;
+    // Solo nos quedamos con el nombre real del archivo (Ej: "dieta_verano.pdf")
+    @Column(name = "nombre_original", nullable = false, length = 255)
+    private String nombreOriginal;
 
-    @Column(length = 255)
-    private String descripcion;
+    @Column(nullable = false, unique = true)
+    private String driveFileId;
 
-    // En el MVP guardaremos la URL directa al archivo PDF (ej. un link de AWS S3 o una ruta local)
-    @Column(name = "url_descarga", nullable = false, length = 500)
-    private String urlDescarga;
+    @Column(nullable = false)
+    private String mimeType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AlcanceDocumento alcance;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario propietario;
 
     @Column(name = "fecha_subida", nullable = false)
     private LocalDate fechaSubida;

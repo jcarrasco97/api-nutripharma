@@ -133,3 +133,50 @@ El cálculo de nóminas y comisiones se rige por una tabla base de 40 horas sema
   * **OB1:** Meta 5.000€ (Mín. Prod 800€) ➔ Bono Fijo 200€
   * **OB2:** Meta 6.800€ (Mín. Prod 1.000€) ➔ Bono Fijo 400€ + 5% del exceso.
   * **OB3:** Meta 8.700€ (Mín. Prod 1.200€) ➔ Bono Fijo 600€ + 10% del exceso.
+
+### 2.4. Módulo: Suministros y Materiales (Solo Nutricionistas)
+
+Gestión y solicitud de material corporativo y de trabajo necesario para las consultas.
+
+* **Catálogo Estandarizado:** Los materiales (ej. Folletos, Bolígrafos, Cintas métricas) y sus cantidades a enviar están estandarizados por la empresa en la base de datos. La nutricionista no elige cantidad, simplemente añade a su cesta *qué* necesita.
+* **Máquina de Estados de Peticiones:** Las solicitudes pasan por los siguientes estados:
+  1. `SOLICITADO`: La petición se ha enviado a central y está pendiente de revisión.
+  2. `APROBADO`: Central ha dado el visto bueno y el material está en preparación/envío.
+  3. `CANCELADO`: La petición ha sido denegada (ej. solicitud abusiva o falta de stock temporal).
+* **Regla Antispam (Bloqueo Activo):** * Si un material se encuentra actualmente en una petición con estado `SOLICITADO` por una nutricionista, el sistema bloquea y oculta/deshabilita ese material en su catálogo para evitar solicitudes duplicadas del mismo ítem.
+  * Una vez la petición pasa a `APROBADO` o `CANCELADO`, el material vuelve a liberarse en el catálogo para futuras necesidades.
+* **Privacidad:** El historial de peticiones es estrictamente individual por nutricionista.
+## 6. Evolución del Rol Administrador y Panel de Control
+
+### 6.1. Dualidad de Rol (Super-Admin)
+- Se implementará una lógica de "Cambio de Modo" para usuarios con doble rol (Admin + Nutricionista).
+- El usuario podrá alternar entre la interfaz operativa (Consultas/Suministros) y la interfaz gerencial (Administración) para evitar la saturación de información en pantalla.
+
+### 6.2. Vista: Resumen Gerencial (Dashboard Admin)
+- **Analítica de Facturación:** Gráfico dinámico de facturación global por productos.
+  - Filtros por Año y Mes.
+  - Desglose de ingresos mensuales.
+- **Calendario Operativo:** Interfaz visual estilo calendario (iOS/Windows) que centralice:
+  - Fechas de consultas programadas/realizadas.
+  - Fechas de pedidos realizados.
+  - **Interactividad:** Sistema de pop-ups (modales) al hacer clic en un evento para visualizar el detalle completo de la consulta o el pedido sin salir de la vista.
+
+### 6.3. Vista: Centro de Validaciones (Control de Flujo)
+Punto único de aprobación manual para garantizar la veracidad de los datos antes de afectar al saldo:
+- **Pedidos:** Cambio de estado de "Pendiente de Envío" a "Enviado" tras comprobación logística.
+- **Consultas:** Validación de jornadas realizadas. La validación del Admin es el desencadenante (trigger) para:
+  - El ingreso efectivo de comisiones en el saldo virtual de la farmacia.
+  - El cómputo de la jornada para los objetivos del nutricionista.
+- **Suministros:** Aprobación y gestión de envío de peticiones de materiales corporativos.
+
+### 6.4. Vista: Administración Maestro (CRUD)
+- Gestión integral (Alta, Baja, Modificación y Listado optimizado) de las entidades principales:
+  - **Farmacias:** Datos fiscales, direcciones y saldos.
+  - **Nutricionistas:** Datos personales, contratos y asignaciones.
+  - **Productos:** Gestión de catálogo, PVP y PVF.
+
+### 6.5. Gestión Documental
+- Acceso exclusivo del Admin para la subida masiva o individual de documentación técnica, legal o comercial hacia la nube corporativa (Google Drive).
+
+### 6.6. Política de UX para Admin
+- Se priorizará la segregación de funciones en sub-vistas para mantener una interfaz limpia y escalable, evitando dashboards sobrecargados.

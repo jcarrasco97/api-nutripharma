@@ -48,4 +48,10 @@ public class ConsultaController {
     public ResponseEntity<List<ConsultaResponse>> obtenerMisConsultas(java.security.Principal principal) {
         return ResponseEntity.ok(consultaService.obtenerMisConsultas(principal.getName()));
     }
+
+    @GetMapping("/historial-farmacia")
+    @PreAuthorize("hasRole('FARMACIA')")
+    public ResponseEntity<List<ConsultaResponse>> obtenerHistorialFarmacia(java.security.Principal principal) {
+        return ResponseEntity.ok(consultaService.obtenerHistorialFarmacia(principal.getName()));
+    }
 }

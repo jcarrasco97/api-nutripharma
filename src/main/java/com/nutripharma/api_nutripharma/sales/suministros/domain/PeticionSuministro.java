@@ -31,7 +31,7 @@ public class PeticionSuministro {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private EstadoPeticion estado = EstadoPeticion.PENDIENTE;
+    private EstadoPeticion estado = EstadoPeticion.SOLICITADO; // Actualizado al estado del PRD
 
     // Aquí está la magia del "Checklist": Una petición tiene MUCHOS materiales seleccionados.
     @ManyToMany

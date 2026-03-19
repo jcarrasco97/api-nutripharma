@@ -114,6 +114,14 @@ public class ConsultaService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ConsultaResponse> obtenerHistorialFarmacia(String email) {
+        return consultaRepository.findByFarmaciaUsuarioEmailOrderByFechaDesc(email)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private ConsultaResponse mapToResponse(Consulta c) {
         return new ConsultaResponse(
                 c.getId(),
