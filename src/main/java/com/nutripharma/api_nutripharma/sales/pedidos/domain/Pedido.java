@@ -38,7 +38,7 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private EstadoPedido estado = EstadoPedido.PENDIENTE_LIQUIDAR;
+    private EstadoPedido estado = EstadoPedido.PENDIENTE_ENVIO;
 
     // MAGIA DE HIBERNATE: Un pedido tiene MUCHAS líneas.
     // Si borro el pedido, se borran sus líneas (CascadeType.ALL)

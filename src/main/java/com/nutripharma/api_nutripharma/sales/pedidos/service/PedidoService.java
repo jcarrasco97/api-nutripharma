@@ -47,7 +47,7 @@ public class PedidoService {
                 .farmacia(farmacia)
                 .nutricionista(nutricionista)
                 .fechaPedido(request.fechaPedido())
-                .estado(EstadoPedido.PENDIENTE_LIQUIDAR)
+                .estado(EstadoPedido.PENDIENTE_ENVIO)
                 .lineas(new ArrayList<>())
                 .build();
 
@@ -174,5 +174,18 @@ public class PedidoService {
                 calcularTotalRealPedido(p), // Total global (EXCLUSIVO dinero real)
                 lineasResponse
         );
+    }
+    // --- NUEVO: Validar y Enviar Pedido (Admin) ---
+    @Transactional
+    public PedidoResponse marcarComoEnviado(Long id) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
+            throw new IllegalStateException("El pedido no está pendiente de envío.");
+        }
+
+        pedido.setEstado(EstadoPedido.ENVIADO);
+        return mapToResponse(pedidoRepository.save(pedido));
     }
 }

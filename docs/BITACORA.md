@@ -274,3 +274,116 @@ Enriquecimos el Historial de Turnos de la Nutricionista:
 * Añadimos un **Buscador en tiempo real** (barra de búsqueda) para filtrar los turnos por el nombre de la farmacia.
 * Implementamos un **Filtro de Meses dinámico**: React lee todas las fechas de los turnos descargados, extrae los meses únicos usando un `Set`, y genera un menú desplegable para aislar el historial por meses.
 * Añadimos **ordenación cronológica** (Más recientes / Más antiguos).
+* ## ☁️ CAPÍTULO 16: Integración con la Nube (Google Drive API)
+
+Para evitar saturar nuestro servidor con archivos físicos (PDFs, imágenes), decidimos delegar el almacenamiento en **Google Drive**, utilizando nuestro servidor como un "puente seguro".
+
+### 16.1. El Puente OAuth2 y el Refresh Token
+- **Desafío:** Las APIs de Google requieren tokens que caducan cada hora. No podemos pedirle al Admin que se loguee en Google cada vez que quiera subir un archivo.
+- **Solución:** Implementamos un flujo de **Refresh Token**. Configuramos el proyecto en Google Cloud Console, obtuvimos las credenciales y usamos el *OAuth2 Playground* para generar una "llave maestra" eterna.
+- **Decisión Técnica:** Pasamos la aplicación a estado de **"Producción"** en Google Cloud para evitar que el token caducara a los 7 días (restricción de las apps en modo testing).
+
+### 16.2. GoogleDriveService: El Gestor de Bytes
+- Creamos un servicio especializado que utiliza `GoogleNetHttpTransport` y `GsonFactory`.
+- El servicio no guarda archivos en el disco duro del servidor; recibe el `MultipartFile` de React, lo sube directamente a una carpeta específica de Drive y nos devuelve un **ID único**. Este ID es lo único que guardamos en nuestra base de datos MySQL.
+
+---
+
+## 🗄️ CAPÍTULO 17: Refinamiento de Datos y Selección de Usuarios
+
+### 17.1. La Limpieza del Esquema (Drop & Recreate)
+- **Problema:** Al simplificar el modelo de documentos (eliminando campos como título y descripción), Spring Boot no borraba las columnas antiguas de MySQL por seguridad, causando errores de integridad (404/500).
+- **Aprendizaje:** En fase de desarrollo, la forma más sana de sincronizar cambios estructurales es ejecutar un **DROP TABLE** y dejar que Hibernate genere la tabla de nuevo desde cero, asegurando que los campos coincidan al 100% con el código Java.
+
+### 17.2. Consultas Nativas y Proyecciones
+- **El Reto del Desplegable:** Necesitábamos que el Admin pudiera elegir a qué usuario enviar un documento privado, pero los nombres están repartidos en tres tablas (`usuarios`, `nutricionistas`, `farmacias`).
+- **Solución SQL:** Implementamos una **Native Query** en el repositorio usando la función `COALESCE`. Esta función intenta buscar el nombre en la tabla de nutricionistas, si no existe busca en la de farmacias, y si no, devuelve un valor por defecto. Usamos una **Proyección (Interface)** para mapear este resultado mixto de forma elegante en Java.
+
+---
+
+## 📈 CAPÍTULO 18: Historial y Analítica para Farmacias
+
+Decidimos dotar a la Farmacia de una herramienta de transparencia para que pueda auditar el trabajo de los nutricionistas en su local.
+
+### 18.1. El Endpoint de Historial Contextual
+- Creamos una ruta `/api/consultas/historial-farmacia` protegida.
+- El servidor utiliza el **Principal** (el usuario autenticado) para filtrar automáticamente las consultas. La farmacia solo recibe datos de su propio local, garantizando la privacidad entre establecimientos.
+
+### 18.2. Cálculo de Comisiones en Tiempo Real
+- **Regla de Negocio:** La farmacia se queda con el **30%** de lo generado en cada jornada (**25€** por consulta nueva, **20€** por revisión).
+- **Implementación UX:** En el Frontend, la `VistaHistorialFarmacia.jsx` calcula y muestra este beneficio en cada tarjeta. Esto refuerza el valor del servicio de NutriPharma ante el dueño de la farmacia.
+
+---
+
+## 🛡️ CAPÍTULO 19: Triage de Seguridad (La Batalla del 403)
+
+Durante el desarrollo del módulo de borrado, nos enfrentamos a bloqueos de seguridad que nos obligaron a profundizar en la configuración de Spring Security.
+
+### 19.1. CORS para Métodos Peligrosos
+- **Síntoma:** El `GET` y el `POST` funcionaban, pero el `DELETE` devolvía un **403 Forbidden**.
+- **Causa:** Nuestra configuración de CORS no incluía explícitamente el método `DELETE`. Los navegadores modernos bloquean cualquier intento de borrado desde un origen distinto si no hay un permiso explícito en las cabeceras.
+- **Solución:** Actualizamos la configuración global de CORS para permitir la lista completa: `GET, POST, PUT, DELETE, OPTIONS`.
+
+### 19.2. Borrado Atómico (Nube + Local)
+- Implementamos un flujo de borrado en dos pasos: primero ordenamos a la API de Google eliminar el archivo físico y, solo si eso tiene éxito, borramos el registro de la base de datos local. Esto evita tener "archivos huérfanos" en el Drive que consuman espacio inútilmente.
+
+---
+
+## 🎯 CAPÍTULO 20: Pivotaje Estratégico del Rol Administrador
+
+Tras analizar el flujo de Paco (el jefe), detectamos que el rol Admin estaba saturado de funciones operativas. Decidimos separar el **Modo Nutricionista** (pasar consulta) del **Modo Gerente** (gestionar la empresa).
+
+### 20.1. El Nuevo Dashboard Administrativo
+Redefinimos las prioridades de la vista Admin:
+- **Resumen Gráfico:** Implementamos la necesidad de una analítica visual de facturación global mes a mes.
+- **Calendario Operativo:** Un centro visual para monitorizar todas las consultas y pedidos de la red de nutricionistas a través de una interfaz de calendario interactiva con pop-ups de información.
+- **Flujo de Validación (The Gatekeeper):** Introdujimos un estado intermedio de validación. Los pedidos y consultas no afectan al saldo financiero ni a los objetivos hasta que el Admin los valida manualmente, actuando como un filtro de calidad y control de fraude.
+
+---
+
+> 💡 **Lección del día:**
+> La arquitectura no es algo estático; evoluciona con el uso. Pasar de una app "que hace cosas" a una app "que gestiona un negocio" requiere saber cuándo separar las herramientas de trabajo de las herramientas de control.
+## 🛡️ CAPÍTULO 21: El "Gatekeeper" Definitivo y la Lógica Front-End
+
+Tras definir el flujo de validación, nos dimos cuenta de que tener al administrador saltando entre múltiples pantallas para aprobar el trabajo diario era ineficiente. Decidimos unificar el control.
+
+### 21.1. Centro de Validaciones (VistaValidaciones.jsx)
+* Creamos una "Bandeja de Entrada" centralizada con sistema de pestañas (Tabs) para gestionar **Consultas, Pedidos y Suministros**.
+* **Separación de Estados:** La pantalla se divide dinámicamente en lo que "Requiere Atención" (Bandeja de pendientes) y el "Historial" (Auditoría de lo ya procesado).
+* **El Pop-up de Auditoría:** En lugar de saturar la tabla del historial con columnas infinitas, limpiamos la interfaz e implementamos un Modal Universal. Al pulsar "Detalles", se abre un informe completo cuyo diseño cambia adaptándose al tipo de entidad seleccionada.
+
+### 21.2. Inteligencia en el Frontend (Agrupación y Matemáticas)
+Para el desglose de los Pedidos, el Backend nos devolvía una lista plana de líneas de compra. En lugar de sobrecargar el servidor con cálculos de visualización, le dimos inteligencia a React:
+* Creamos la función `agruparLineasPorProducto()` que unifica productos con el mismo nombre y desglosa automáticamente si fueron pagados con **Dinero Real, Saldo Virtual o si son Bonificados (Gratis)**.
+* **Lección de Arquitectura:** El backend entrega los datos crudos y exactos; el frontend se encarga de "masticarlos" y agruparlos para la experiencia del usuario (UX).
+
+### 21.3. Blindaje contra la "Pantalla Blanca de la Muerte"
+* Nos enfrentamos a caídas de React al intentar renderizar listas vacías o datos corruptos provenientes de pruebas antiguas en la base de datos.
+* **Solución (Defensive Programming):** Implementamos *Optional Chaining* (`?.`) en todos los mapeos de arrays (ej. `materiales?.map(...)`) y asignamos parámetros por defecto `(lineas = [])`. Así, si el backend falla o envía un `null`, React simplemente pinta un bloque vacío en lugar de colapsar la aplicación entera.
+
+---
+
+## ⚙️ CAPÍTULO 22: Panel de Administración y Operaciones CRUD Completas
+
+Para gestionar la plataforma en producción, el Administrador necesitaba poder corregir errores humanos: editar nombres, corregir precios o dar de baja entidades.
+
+### 22.1. VistaAdministracion.jsx (Evolución de VistaEmpleados)
+* Transformamos el antiguo formulario de registro en un Panel de Administración completo dividido en pestañas: Nutricionistas, Farmacias y Catálogo de Productos.
+* Integramos la tabla de visualización con botones flotantes de edición y borrado que aparecen suavemente al pasar el ratón (Hover effects en Tailwind).
+
+### 22.2. Completando el CRUD en el Backend (Capa DTO y Controladores)
+Hasta ahora, nuestra API solo permitía Crear (POST) y Leer (GET). Abrimos las puertas a la Actualización (PUT) y Borrado (DELETE):
+* **Nuevos DTOs (`*UpdateRequest`):** En lugar de reutilizar el objeto de creación, creamos *Records* específicos para la actualización. Esto es vital por seguridad: evitamos que un administrador pueda sobrescribir accidentalmente la contraseña o el saldo virtual de una farmacia al editar su dirección.
+* **Borrado Atómico:** Implementamos la lógica de eliminación en cascada de forma manual en los servicios. Al borrar una Farmacia o Nutricionista, el backend elimina primero su perfil laboral y luego destruuye sus credenciales de acceso en la tabla `usuarios`.
+* **Escudo de Integridad:** Nos apoyamos en la base de datos relacional. Si se intenta borrar un Producto que ya está presente en una línea de pedido histórico, MySQL bloquea la transacción (por clave foránea) y el Frontend captura el error elegantemente, avisando al usuario de que la entidad tiene datos asociados y no puede ser borrada.
+
+---
+
+## 📊 CAPÍTULO 23: Formateo de Datos y Detalles UX
+
+### 23.1. Recharts y la manipulación del Tooltip
+* En el Dashboard General, la gráfica de facturación mostraba números "crudos" al pasar el ratón, lo cual carecía de contexto financiero.
+* **Solución:** Descubrimos y utilizamos la propiedad `formatter` del componente `<Tooltip />` de Recharts. Pasando una *Arrow Function* `(value) => [\`${value} €\`]`, logramos interceptar el dato de React antes de dibujarlo e inyectarle el símbolo de la moneda, mejorando drásticamente la percepción del usuario final sin alterar la base de datos.
+
+> 💡 **Lección del día:**
+> Una buena interfaz de usuario (UI) perdona los errores del servidor, protege al usuario de acciones destructivas y da contexto visual a datos que, de otro modo, serían simples números en una base de datos.

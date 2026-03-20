@@ -1,6 +1,7 @@
 package com.nutripharma.api_nutripharma.sales.catalogo.controller.dto;
 
 import com.nutripharma.api_nutripharma.sales.catalogo.domain.CategoriaProducto;
+
 import java.math.BigDecimal;
 
 public class ProductoDTO {
@@ -12,7 +13,8 @@ public class ProductoDTO {
             String referencia,
             BigDecimal pvf,
             BigDecimal pvp
-    ) {}
+    ) {
+    }
 
     public record ProductoResponse(
             Long id,
@@ -24,5 +26,14 @@ public class ProductoDTO {
             BigDecimal pvp,
             BigDecimal iva,
             Boolean hayExistencias
-    ) {}
+    ) {
+    }
+
+    // Petición para modificar un producto existente
+    public record ProductoUpdateRequest(
+            String nombreProducto,
+            BigDecimal pvf,
+            BigDecimal pvp
+    ) {
+    }
 }

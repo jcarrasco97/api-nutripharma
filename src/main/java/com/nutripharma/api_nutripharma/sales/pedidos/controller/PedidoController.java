@@ -43,4 +43,11 @@ public class PedidoController {
     public ResponseEntity<List<PedidoResponse>> obtenerMisPedidos(java.security.Principal principal) {
         return ResponseEntity.ok(pedidoService.obtenerMisPedidos(principal.getName()));
     }
+
+    // 👇 NUEVA RUTA PARA EL ADMIN 👇
+    @PutMapping("/{id}/enviar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PedidoResponse> enviarPedidoAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.marcarComoEnviado(id));
+    }
 }

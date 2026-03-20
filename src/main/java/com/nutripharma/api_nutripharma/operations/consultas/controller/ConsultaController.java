@@ -54,4 +54,11 @@ public class ConsultaController {
     public ResponseEntity<List<ConsultaResponse>> obtenerHistorialFarmacia(java.security.Principal principal) {
         return ResponseEntity.ok(consultaService.obtenerHistorialFarmacia(principal.getName()));
     }
+
+    // 👇 NUEVA RUTA PARA EL ADMIN 👇
+    @PutMapping("/{id}/validar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConsultaResponse> validarTurnoAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(consultaService.validarTurno(id));
+    }
 }

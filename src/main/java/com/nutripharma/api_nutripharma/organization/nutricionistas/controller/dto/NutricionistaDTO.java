@@ -10,7 +10,8 @@ public class NutricionistaDTO {
             String apellidos,
             String dni,
             Integer horasContratoMensual
-    ) {}
+    ) {
+    }
 
     // Lo que le devolveremos al Frontend después de crearlo con éxito
     public record NutricionistaResponse(
@@ -20,5 +21,14 @@ public class NutricionistaDTO {
             String apellidos,
             String dni,
             Integer horasContratoMensual
-    ) {}
+    ) {
+    }
+
+    // Petición para modificar a un empleado
+    public record NutricionistaUpdateRequest(
+            String nombre,
+            String apellidos,
+            Integer horasContratoMensual
+    ) {
+    }
 }

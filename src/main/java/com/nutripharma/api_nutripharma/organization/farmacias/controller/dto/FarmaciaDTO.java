@@ -8,7 +8,8 @@ public class FarmaciaDTO {
             String nombre,
             String cif,
             String direccion
-    ) {}
+    ) {
+    }
 
     public record FarmaciaResponse(
             Long id,
@@ -17,5 +18,14 @@ public class FarmaciaDTO {
             String cif,
             String direccion,
             Double saldoVirtual // <-- NUEVO CAMPO
-    ) {}
+    ) {
+    }
+
+    // Petición para modificar una farmacia existente (sin tocar contraseñas ni saldos)
+    public record FarmaciaUpdateRequest(
+            String nombre,
+            String cif,
+            String direccion
+    ) {
+    }
 }

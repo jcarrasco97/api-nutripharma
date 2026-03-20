@@ -51,37 +51,46 @@ public class ConsultaService {
         return mapToResponse(consultaRepository.save(nuevaConsulta));
     }
 
-    // 2. CONFIRMAR EL TURNO Y CALCULAR COMISIÓN (REGLA 70/30)
+    // 2. CONFIRMAR EL TURNO (La nutricionista termina su día)
     @Transactional
     public ConsultaResponse confirmarTurno(Long id) {
         Consulta consulta = consultaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
 
-        // Protección: Evitar doble ingreso si ya estaba confirmada
-        if (consulta.getEstado() == EstadoConsulta.CONFIRMADA || consulta.getEstado() == EstadoConsulta.CON_INCIDENCIA) {
-            throw new IllegalStateException("Esta consulta ya ha sido confirmada y liquidada anteriormente.");
+        if (consulta.getEstado() != EstadoConsulta.BORRADOR && consulta.getEstado() != EstadoConsulta.CON_INCIDENCIA) {
+            throw new IllegalStateException("Solo se pueden confirmar consultas en Borrador o con Incidencia resuelta.");
+        }
+
+        // Ya NO calcula dinero aquí. Solo cambia el estado para que Paco lo revise.
+        consulta.setEstado(EstadoConsulta.PENDIENTE_VALIDACION);
+        return mapToResponse(consultaRepository.save(consulta));
+    }
+
+    // 2.5 VALIDAR EL TURNO (Exclusivo del ADMIN - Genera el dinero)
+    @Transactional
+    public ConsultaResponse validarTurno(Long id) {
+        Consulta consulta = consultaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+
+        if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
+            throw new IllegalStateException("Esta consulta ya ha sido validada y liquidada anteriormente.");
         }
 
         // --- CÁLCULO DEL SALDO VIRTUAL PARA LA FARMACIA ---
         double ingresosNuevas = consulta.getNuevas() * 25.0;
         double ingresosRevisiones = consulta.getRevisiones() * 20.0;
-        // Promociones y Personal Farmacia valen 0€, así que no suman.
-
         double totalGenerado = ingresosNuevas + ingresosRevisiones;
 
         if (totalGenerado > 0) {
             double comisionFarmacia = totalGenerado * 0.30; // El famoso 30%
             Farmacia farmacia = consulta.getFarmacia();
 
-            // Le sumamos el dinero a su monedero
             double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
             farmacia.setSaldoVirtual(saldoActual + comisionFarmacia);
-
             farmaciaRepository.save(farmacia);
         }
-        // --------------------------------------------------
 
-        consulta.setEstado(EstadoConsulta.CONFIRMADA);
+        consulta.setEstado(EstadoConsulta.VALIDADA);
         return mapToResponse(consultaRepository.save(consulta));
     }
 
@@ -91,7 +100,7 @@ public class ConsultaService {
         Consulta consulta = consultaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
 
-        if (consulta.getEstado() != EstadoConsulta.CONFIRMADA) {
+        if (consulta.getEstado() != EstadoConsulta.VALIDADA) {
             throw new IllegalStateException("Solo se pueden abrir incidencias sobre turnos confirmados.");
         }
 

@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.organization.farmacias.service;
 
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO;
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaRequest;
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
@@ -69,6 +70,31 @@ public class FarmaciaService {
         Farmacia farmacia = farmaciaRepository.findByUsuarioEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Perfil de farmacia no encontrado."));
         return mapToResponse(farmacia);
+    }
+
+    @Transactional
+    public FarmaciaResponse actualizarFarmacia(Long id, FarmaciaDTO.FarmaciaUpdateRequest request) {
+        Farmacia f = farmaciaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
+
+        f.setNombre(request.nombre());
+        f.setCif(request.cif());
+        f.setDireccion(request.direccion());
+
+        return mapToResponse(farmaciaRepository.save(f));
+    }
+
+    @Transactional
+    public void eliminarFarmacia(Long id) {
+        Farmacia f = farmaciaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
+
+        // Extraemos el ID del usuario antes de borrar la farmacia
+        Long usuarioId = f.getUsuario().getId();
+
+        // Borramos primero la Farmacia (que tiene la clave foránea) y luego sus credenciales
+        farmaciaRepository.delete(f);
+        usuarioRepository.deleteById(usuarioId);
     }
 
     private FarmaciaResponse mapToResponse(Farmacia f) {

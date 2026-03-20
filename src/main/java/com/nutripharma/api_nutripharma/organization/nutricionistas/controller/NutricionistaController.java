@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.organization.nutricionistas.controller;
 
+import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaRequest;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaResponse;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.service.NutricionistaService;
@@ -44,5 +45,18 @@ public class NutricionistaController {
     @PreAuthorize("hasRole('NUTRICIONISTA')")
     public ResponseEntity<NutricionistaResponse> obtenerMiPerfil(Principal principal) {
         return ResponseEntity.ok(nutricionistaService.obtenerMiPerfil(principal.getName()));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<NutricionistaResponse> actualizarNutricionista(@PathVariable Long id, @RequestBody NutricionistaDTO.NutricionistaUpdateRequest request) {
+        return ResponseEntity.ok(nutricionistaService.actualizarNutricionista(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> eliminarNutricionista(@PathVariable Long id) {
+        nutricionistaService.eliminarNutricionista(id);
+        return ResponseEntity.noContent().build();
     }
 }

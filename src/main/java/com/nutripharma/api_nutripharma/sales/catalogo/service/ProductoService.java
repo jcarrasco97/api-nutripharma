@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.sales.catalogo.service;
 
+import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoRequest;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoResponse;
 import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
@@ -39,6 +40,23 @@ public class ProductoService {
     @Transactional(readOnly = true)
     public List<ProductoResponse> listarTodos() {
         return productoRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProductoResponse actualizarProducto(Long id, ProductoDTO.ProductoUpdateRequest request) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        p.setNombreProducto(request.nombreProducto());
+        p.setPvf(request.pvf());
+        p.setPvp(request.pvp());
+
+        return mapToResponse(productoRepository.save(p));
+    }
+
+    @Transactional
+    public void eliminarProducto(Long id) {
+        productoRepository.deleteById(id);
     }
 
     private ProductoResponse mapToResponse(Producto p) {

@@ -29,4 +29,6 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
     List<Consulta> findByFarmaciaUsuarioEmailOrderByFechaDesc(String email);
 
     List<Consulta> findByNutricionistaUsuarioEmail(String email);
+    // Para el calendario y facturación global del Admin
+    List<Consulta> findByFechaBetween(LocalDate fechaInicio, LocalDate fechaFin);
 }

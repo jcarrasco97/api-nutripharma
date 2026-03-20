@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.sales.catalogo.controller;
 
+import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoRequest;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoResponse;
 import com.nutripharma.api_nutripharma.sales.catalogo.service.ProductoService;
@@ -28,5 +29,18 @@ public class ProductoController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')") // Todos pueden ver el catálogo
     public ResponseEntity<List<ProductoResponse>> listarTodos() {
         return ResponseEntity.ok(productoService.listarTodos());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProductoResponse> actualizarProducto(@PathVariable Long id, @RequestBody ProductoDTO.ProductoUpdateRequest request) {
+        return ResponseEntity.ok(productoService.actualizarProducto(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> eliminarProducto(@PathVariable Long id) {
+        productoService.eliminarProducto(id);
+        return ResponseEntity.noContent().build();
     }
 }

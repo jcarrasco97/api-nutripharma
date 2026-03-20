@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.organization.nutricionistas.service;
 
+import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaRequest;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaResponse;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
@@ -95,6 +96,30 @@ public class NutricionistaService {
         Nutricionista nutricionista = nutricionistaRepository.findByUsuarioEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Perfil de nutricionista no encontrado."));
         return mapToResponse(nutricionista);
+    }
+
+    @Transactional
+    public NutricionistaResponse actualizarNutricionista(Long id, NutricionistaDTO.NutricionistaUpdateRequest request) {
+        Nutricionista n = nutricionistaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada"));
+
+        n.setNombre(request.nombre());
+        n.setApellidos(request.apellidos());
+        n.setHorasContratoMensual(request.horasContratoMensual());
+
+        return mapToResponse(nutricionistaRepository.save(n));
+    }
+
+    @Transactional
+    public void eliminarNutricionista(Long id) {
+        Nutricionista n = nutricionistaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada"));
+
+        Long usuarioId = n.getUsuario().getId();
+
+        // Borramos el perfil laboral y luego el acceso al sistema
+        nutricionistaRepository.delete(n);
+        usuarioRepository.deleteById(usuarioId);
     }
 
     // Método auxiliar para no repetir código de mapeo

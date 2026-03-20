@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.organization.farmacias.controller;
 
+import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO;
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaRequest;
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.service.FarmaciaService;
@@ -37,5 +38,18 @@ public class FarmaciaController {
     @PreAuthorize("hasRole('FARMACIA')")
     public ResponseEntity<FarmaciaResponse> obtenerMiPerfil(java.security.Principal principal) {
         return ResponseEntity.ok(farmaciaService.obtenerMiPerfil(principal.getName()));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<FarmaciaResponse> actualizarFarmacia(@PathVariable Long id, @RequestBody FarmaciaDTO.FarmaciaUpdateRequest request) {
+        return ResponseEntity.ok(farmaciaService.actualizarFarmacia(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> eliminarFarmacia(@PathVariable Long id) {
+        farmaciaService.eliminarFarmacia(id);
+        return ResponseEntity.noContent().build();
     }
 }
