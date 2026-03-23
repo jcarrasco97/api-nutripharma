@@ -1,8 +1,9 @@
 package com.nutripharma.api_nutripharma.organization.nutricionistas.service;
 
+import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
+import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO;
-import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaRequest;
-import com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto.NutricionistaDTO.NutricionistaResponse;
+import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.AsignacionFarmacia;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
@@ -14,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,12 +28,11 @@ public class NutricionistaService {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FarmaciaRepository farmaciaRepository;
 
-    // @Transactional es vital: Si falla al crear el perfil, deshace también la creación del usuario.
     @Transactional
-    public NutricionistaResponse crearNutricionista(NutricionistaRequest request) {
+    public NutricionistaDTO.NutricionistaResponse crearNutricionista(NutricionistaDTO.NutricionistaRequest request) {
 
-        // 1. Validaciones de negocio (Evitar duplicados)
         if (usuarioRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("El email ya está registrado en el sistema.");
         }
@@ -39,45 +40,49 @@ public class NutricionistaService {
             throw new IllegalArgumentException("Ya existe un nutricionista con ese DNI.");
         }
 
-        // 2. Buscar el Rol en la base de datos
         Rol rolNutricionista = rolRepository.findByNombre("ROLE_NUTRICIONISTA")
                 .orElseThrow(() -> new RuntimeException("Error crítico: El rol no existe en BD."));
 
-        // 3. Crear las credenciales de acceso (Bóveda de Seguridad)
         Usuario nuevoUsuario = Usuario.builder()
                 .email(request.email())
-                .password(passwordEncoder.encode(request.password())) // ¡Encriptación fuerte!
+                .password(passwordEncoder.encode(request.password()))
                 .activo(true)
                 .roles(Set.of(rolNutricionista))
                 .build();
 
-        // Guardamos el usuario para que MySQL le asigne un ID
         usuarioRepository.save(nuevoUsuario);
 
-        // 4. Crear el perfil laboral (Directorio de la Organización)
         Nutricionista nuevoNutricionista = Nutricionista.builder()
-                .usuario(nuevoUsuario) // Aquí hacemos el enlace 1 a 1
+                .usuario(nuevoUsuario)
                 .nombre(request.nombre())
                 .apellidos(request.apellidos())
                 .dni(request.dni())
                 .horasContratoMensual(request.horasContratoMensual())
+                .asignaciones(new ArrayList<>()) // Inicializamos la lista vacía
                 .build();
 
-        Nutricionista guardado = nutricionistaRepository.save(nuevoNutricionista);
+        // --- NUEVO: Construimos las asignaciones con los kilómetros ---
+        if (request.asignaciones() != null && !request.asignaciones().isEmpty()) {
+            for (NutricionistaDTO.AsignacionRequest asigReq : request.asignaciones()) {
+                Farmacia f = farmaciaRepository.findById(asigReq.farmaciaId())
+                        .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada con ID: " + asigReq.farmaciaId()));
 
-        // 5. Devolver el DTO limpio al frontend
-        return new NutricionistaResponse(
-                guardado.getId(),
-                nuevoUsuario.getEmail(),
-                guardado.getNombre(),
-                guardado.getApellidos(),
-                guardado.getDni(),
-                guardado.getHorasContratoMensual()
-        );
+                AsignacionFarmacia asignacion = AsignacionFarmacia.builder()
+                        .nutricionista(nuevoNutricionista)
+                        .farmacia(f)
+                        .kilometros(asigReq.kilometros() != null ? asigReq.kilometros() : 0)
+                        .build();
+
+                nuevoNutricionista.getAsignaciones().add(asignacion);
+            }
+        }
+
+        Nutricionista guardado = nutricionistaRepository.save(nuevoNutricionista);
+        return mapToResponse(guardado);
     }
 
     @Transactional(readOnly = true)
-    public List<NutricionistaResponse> obtenerTodos() {
+    public List<NutricionistaDTO.NutricionistaResponse> obtenerTodos() {
         return nutricionistaRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
@@ -85,27 +90,46 @@ public class NutricionistaService {
     }
 
     @Transactional(readOnly = true)
-    public NutricionistaResponse obtenerPorId(Long id) {
+    public NutricionistaDTO.NutricionistaResponse obtenerPorId(Long id) {
         Nutricionista nutricionista = nutricionistaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
         return mapToResponse(nutricionista);
     }
 
     @Transactional(readOnly = true)
-    public NutricionistaResponse obtenerMiPerfil(String email) {
+    public NutricionistaDTO.NutricionistaResponse obtenerMiPerfil(String email) {
         Nutricionista nutricionista = nutricionistaRepository.findByUsuarioEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Perfil de nutricionista no encontrado."));
         return mapToResponse(nutricionista);
     }
 
     @Transactional
-    public NutricionistaResponse actualizarNutricionista(Long id, NutricionistaDTO.NutricionistaUpdateRequest request) {
+    public NutricionistaDTO.NutricionistaResponse actualizarNutricionista(Long id, NutricionistaDTO.NutricionistaUpdateRequest request) {
         Nutricionista n = nutricionistaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada"));
 
         n.setNombre(request.nombre());
         n.setApellidos(request.apellidos());
         n.setHorasContratoMensual(request.horasContratoMensual());
+
+        // --- NUEVO: Borramos las antiguas y guardamos las nuevas ---
+        // Gracias a orphanRemoval=true, esto borrará de la BD las que se hayan quitado
+        n.getAsignaciones().clear();
+
+        if (request.asignaciones() != null && !request.asignaciones().isEmpty()) {
+            for (NutricionistaDTO.AsignacionRequest asigReq : request.asignaciones()) {
+                Farmacia f = farmaciaRepository.findById(asigReq.farmaciaId())
+                        .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada con ID: " + asigReq.farmaciaId()));
+
+                AsignacionFarmacia asignacion = AsignacionFarmacia.builder()
+                        .nutricionista(n)
+                        .farmacia(f)
+                        .kilometros(asigReq.kilometros() != null ? asigReq.kilometros() : 0)
+                        .build();
+
+                n.getAsignaciones().add(asignacion);
+            }
+        }
 
         return mapToResponse(nutricionistaRepository.save(n));
     }
@@ -117,22 +141,28 @@ public class NutricionistaService {
 
         Long usuarioId = n.getUsuario().getId();
 
-        // Borramos el perfil laboral y luego el acceso al sistema
         nutricionistaRepository.delete(n);
         usuarioRepository.deleteById(usuarioId);
     }
 
-    // Método auxiliar para no repetir código de mapeo
-    private NutricionistaResponse mapToResponse(Nutricionista n) {
-        return new NutricionistaResponse(
+    private NutricionistaDTO.NutricionistaResponse mapToResponse(Nutricionista n) {
+        // --- NUEVO: Convertimos las entidades AsignacionFarmacia en AsignacionResponse DTOs ---
+        List<NutricionistaDTO.AsignacionResponse> asignacionesResponse = n.getAsignaciones().stream()
+                .map(a -> new NutricionistaDTO.AsignacionResponse(
+                        a.getFarmacia().getId(),
+                        a.getFarmacia().getNombre(),
+                        a.getKilometros()
+                ))
+                .collect(Collectors.toList());
+
+        return new NutricionistaDTO.NutricionistaResponse(
                 n.getId(),
-                n.getUsuario().getEmail(), // Sacamos el email de la tabla usuarios
+                n.getUsuario().getEmail(),
                 n.getNombre(),
                 n.getApellidos(),
                 n.getDni(),
-                n.getHorasContratoMensual()
+                n.getHorasContratoMensual(),
+                asignacionesResponse // <-- Retornamos la lista compleja
         );
     }
-
-
 }

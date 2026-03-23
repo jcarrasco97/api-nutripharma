@@ -4,6 +4,9 @@ import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "nutricionistas")
 @Getter
@@ -34,4 +37,7 @@ public class Nutricionista {
     // Dato crucial para calcular si debe horas o tiene saldo a favor en el Resumen
     @Column(name = "horas_contrato_mensual", nullable = false)
     private Integer horasContratoMensual;
+    @OneToMany(mappedBy = "nutricionista", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<AsignacionFarmacia> asignaciones = new ArrayList<>();
 }

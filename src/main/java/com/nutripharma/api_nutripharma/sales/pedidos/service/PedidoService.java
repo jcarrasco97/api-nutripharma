@@ -10,6 +10,7 @@ import com.nutripharma.api_nutripharma.sales.pedidos.controller.dto.PedidoDTO.*;
 import com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.domain.LineaPedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.domain.Pedido;
+import com.nutripharma.api_nutripharma.sales.pedidos.domain.RepartoPedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,6 @@ public class PedidoService {
     private final NutricionistaRepository nutricionistaRepository;
     private final ProductoRepository productoRepository;
 
-    // Umbral mínimo de liquidación fijado por negocio
     private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
 
     @Transactional
@@ -37,31 +37,48 @@ public class PedidoService {
         Farmacia farmacia = farmaciaRepository.findById(request.farmaciaId())
                 .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
 
-        Nutricionista nutricionista = null;
-        if (request.nutricionistaId() != null) {
-            nutricionista = nutricionistaRepository.findById(request.nutricionistaId())
-                    .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
-        }
-
         Pedido nuevoPedido = Pedido.builder()
                 .farmacia(farmacia)
-                .nutricionista(nutricionista)
                 .fechaPedido(request.fechaPedido())
                 .estado(EstadoPedido.PENDIENTE_ENVIO)
                 .lineas(new ArrayList<>())
+                .repartos(new ArrayList<>())
+                .creadoPorAdmin(request.creadoPorAdmin() != null ? request.creadoPorAdmin() : false)
                 .build();
 
-        // Contadores para la regla de la "Doble Cesta"
+        // 1. LÓGICA DE REPARTO MULTICAPA
+        if (request.repartos() != null && !request.repartos().isEmpty()) {
+            BigDecimal sumaPorcentajes = BigDecimal.ZERO;
+            for (RepartoRequest repReq : request.repartos()) {
+                Nutricionista n = nutricionistaRepository.findById(repReq.nutricionistaId())
+                        .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado para el reparto"));
+
+                RepartoPedido reparto = RepartoPedido.builder()
+                        .pedido(nuevoPedido)
+                        .nutricionista(n)
+                        .porcentaje(repReq.porcentaje())
+                        .build();
+                nuevoPedido.getRepartos().add(reparto);
+                sumaPorcentajes = sumaPorcentajes.add(repReq.porcentaje());
+            }
+
+            // Validación de seguridad: El reparto debe sumar 100%
+            if (sumaPorcentajes.compareTo(new BigDecimal("100.00")) != 0 && sumaPorcentajes.compareTo(new BigDecimal("100.0")) != 0) {
+                throw new IllegalArgumentException("Los porcentajes de reparto deben sumar exactamente 100%. Suma actual: " + sumaPorcentajes);
+            }
+        }
+
         BigDecimal totalReal = BigDecimal.ZERO;
         BigDecimal totalSaldo = BigDecimal.ZERO;
 
-        // 1. Procesar las líneas de pedido y separar los totales
+        // 2. LÍNEAS DE PEDIDO
         for (LineaPedidoRequest lineaReq : request.lineas()) {
             Producto producto = productoRepository.findById(lineaReq.productoId())
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + lineaReq.productoId()));
 
             boolean pagadoConSaldo = lineaReq.pagadoConSaldo() != null && lineaReq.pagadoConSaldo();
-            BigDecimal subtotal = producto.getPvf().multiply(new BigDecimal(lineaReq.cantidad()));
+            BigDecimal precioAplicable = farmacia.getEsProvinciaLocal() ? producto.getPvf() : producto.getPvp();
+            BigDecimal subtotal = precioAplicable.multiply(new BigDecimal(lineaReq.cantidad()));
 
             if (pagadoConSaldo) {
                 totalSaldo = totalSaldo.add(subtotal);
@@ -74,27 +91,22 @@ public class PedidoService {
                     .producto(producto)
                     .cantidad(lineaReq.cantidad())
                     .bonificados(lineaReq.bonificados())
-                    .precioAplicado(producto.getPvf())
-                    .pagadoConSaldo(pagadoConSaldo) // <- Guardamos la marca de cómo se pagó
+                    .precioAplicado(precioAplicable)
+                    .pagadoConSaldo(pagadoConSaldo)
                     .build();
 
             nuevoPedido.getLineas().add(linea);
         }
 
-        // 2. Aplicar las Reglas de Negocio del Monedero Virtual
+        // 3. REGLAS MONEDERO VIRTUAL
         if (totalSaldo.compareTo(BigDecimal.ZERO) > 0) {
-            // Regla A: El pedido real debe llegar a 80€ para desbloquear el saldo
             if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
-                throw new IllegalStateException("Para poder usar el saldo virtual, el importe en dinero real debe ser igual o superior a " + UMBRAL_LIQUIDACION + "€. (Actual: " + totalReal + "€)");
+                throw new IllegalStateException("El importe en dinero real debe ser igual o superior a " + UMBRAL_LIQUIDACION + "€. (Actual: " + totalReal + "€)");
             }
-
-            // Regla B: La farmacia debe tener saldo suficiente
             BigDecimal saldoDisponible = BigDecimal.valueOf(farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0);
             if (saldoDisponible.compareTo(totalSaldo) < 0) {
-                throw new IllegalStateException("La farmacia no tiene saldo virtual suficiente. Requerido: " + totalSaldo + "€, Disponible: " + saldoDisponible + "€.");
+                throw new IllegalStateException("Saldo virtual insuficiente.");
             }
-
-            // Regla C: Descontar el dinero del monedero de la farmacia
             BigDecimal nuevoSaldo = saldoDisponible.subtract(totalSaldo);
             farmacia.setSaldoVirtual(nuevoSaldo.doubleValue());
             farmaciaRepository.save(farmacia);
@@ -112,11 +124,9 @@ public class PedidoService {
             throw new IllegalStateException("El pedido ya se encuentra liquidado.");
         }
 
-        // Validamos que el dinero real pagado llegue al mínimo para poder liquidar el pedido principal
         BigDecimal totalReal = calcularTotalRealPedido(pedido);
-
         if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
-            throw new IllegalStateException("No se puede liquidar. El importe real del pedido no alcanza el mínimo de " + UMBRAL_LIQUIDACION + "€. Total actual: " + totalReal + "€.");
+            throw new IllegalStateException("No se puede liquidar. El importe real no alcanza los " + UMBRAL_LIQUIDACION + "€.");
         }
 
         pedido.setEstado(EstadoPedido.LIQUIDADO);
@@ -130,23 +140,52 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> obtenerMisPedidos(String email) {
-        // Intentamos buscar pedidos donde el email sea de la farmacia O del nutricionista
-        List<Pedido> pedidos = pedidoRepository.findByNutricionistaUsuarioEmail(email);
+        List<Pedido> pedidos = pedidoRepository.findByFarmaciaUsuarioEmail(email);
 
         if (pedidos.isEmpty()) {
-            pedidos = pedidoRepository.findByFarmaciaUsuarioEmail(email);
+            pedidos = pedidoRepository.findByRepartosNutricionistaEmail(email);
         }
 
-        return pedidos.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return pedidos.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional
+    public PedidoResponse marcarComoEnviado(Long id, List<RepartoRequest> repartos) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
-    // --- MÉTODOS AUXILIARES ---
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
+            throw new IllegalStateException("El pedido no está pendiente de envío.");
+        }
+
+        // --- NUEVA LÓGICA: EL ADMIN INYECTA EL REPARTO AL VALIDAR EL PEDIDO ---
+        if (repartos != null && !repartos.isEmpty()) {
+            pedido.getRepartos().clear(); // Limpiamos por seguridad
+            BigDecimal sumaPorcentajes = BigDecimal.ZERO;
+
+            for (RepartoRequest repReq : repartos) {
+                Nutricionista n = nutricionistaRepository.findById(repReq.nutricionistaId())
+                        .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado para el reparto"));
+
+                RepartoPedido reparto = RepartoPedido.builder()
+                        .pedido(pedido)
+                        .nutricionista(n)
+                        .porcentaje(repReq.porcentaje())
+                        .build();
+                pedido.getRepartos().add(reparto);
+                sumaPorcentajes = sumaPorcentajes.add(repReq.porcentaje());
+            }
+
+            if (sumaPorcentajes.compareTo(new BigDecimal("100.00")) != 0 && sumaPorcentajes.compareTo(new BigDecimal("100.0")) != 0) {
+                throw new IllegalArgumentException("Los porcentajes de reparto deben sumar exactamente 100%.");
+            }
+        }
+
+        pedido.setEstado(EstadoPedido.ENVIADO);
+        return mapToResponse(pedidoRepository.save(pedido));
+    }
 
     private BigDecimal calcularTotalRealPedido(Pedido pedido) {
-        // Ahora solo sumamos los productos que NO se pagaron con saldo virtual
         return pedido.getLineas().stream()
                 .filter(linea -> linea.getPagadoConSaldo() == null || !linea.getPagadoConSaldo())
                 .map(linea -> linea.getPrecioAplicado().multiply(new BigDecimal(linea.getCantidad())))
@@ -161,31 +200,26 @@ public class PedidoService {
                         l.getCantidad(),
                         l.getBonificados(),
                         l.getPrecioAplicado(),
-                        l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())), // subtotal
-                        l.getPagadoConSaldo() != null && l.getPagadoConSaldo() // <- Lo enviamos al Frontend
+                        l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())),
+                        l.getPagadoConSaldo() != null && l.getPagadoConSaldo()
+                )).collect(Collectors.toList());
+
+        List<RepartoResponse> repartosResponse = p.getRepartos().stream()
+                .map(r -> new RepartoResponse(
+                        r.getNutricionista().getId(),
+                        r.getNutricionista().getNombre() + " " + r.getNutricionista().getApellidos(),
+                        r.getPorcentaje()
                 )).collect(Collectors.toList());
 
         return new PedidoResponse(
                 p.getId(),
                 p.getFarmacia().getNombre(),
-                p.getNutricionista() != null ? p.getNutricionista().getNombre() : null,
                 p.getFechaPedido(),
                 p.getEstado(),
-                calcularTotalRealPedido(p), // Total global (EXCLUSIVO dinero real)
-                lineasResponse
+                calcularTotalRealPedido(p),
+                lineasResponse,
+                p.getCreadoPorAdmin(),
+                repartosResponse
         );
-    }
-    // --- NUEVO: Validar y Enviar Pedido (Admin) ---
-    @Transactional
-    public PedidoResponse marcarComoEnviado(Long id) {
-        Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
-
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
-            throw new IllegalStateException("El pedido no está pendiente de envío.");
-        }
-
-        pedido.setEstado(EstadoPedido.ENVIADO);
-        return mapToResponse(pedidoRepository.save(pedido));
     }
 }

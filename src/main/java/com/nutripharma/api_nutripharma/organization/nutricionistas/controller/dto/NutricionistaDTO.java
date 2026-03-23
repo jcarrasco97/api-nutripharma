@@ -1,34 +1,46 @@
 package com.nutripharma.api_nutripharma.organization.nutricionistas.controller.dto;
 
+import java.util.List;
+
 public class NutricionistaDTO {
 
-    // Lo que esperamos recibir desde el Frontend (React)
+    // --- NUEVOS RECORDS PARA MANEJAR LA ASIGNACIÓN CON KILÓMETROS ---
+    public record AsignacionRequest(
+            Long farmaciaId,
+            Integer kilometros
+    ) {}
+
+    public record AsignacionResponse(
+            Long farmaciaId,
+            String farmaciaNombre,
+            Integer kilometros
+    ) {}
+
+    // --- PETICIONES PRINCIPALES ---
     public record NutricionistaRequest(
             String email,
             String password,
             String nombre,
             String apellidos,
             String dni,
-            Integer horasContratoMensual
-    ) {
-    }
+            Integer horasContratoMensual,
+            List<AsignacionRequest> asignaciones // <-- ACTUALIZADO
+    ) {}
 
-    // Lo que le devolveremos al Frontend después de crearlo con éxito
     public record NutricionistaResponse(
             Long id,
             String email,
             String nombre,
             String apellidos,
             String dni,
-            Integer horasContratoMensual
-    ) {
-    }
+            Integer horasContratoMensual,
+            List<AsignacionResponse> asignaciones // <-- ACTUALIZADO
+    ) {}
 
-    // Petición para modificar a un empleado
     public record NutricionistaUpdateRequest(
             String nombre,
             String apellidos,
-            Integer horasContratoMensual
-    ) {
-    }
+            Integer horasContratoMensual,
+            List<AsignacionRequest> asignaciones // <-- ACTUALIZADO
+    ) {}
 }

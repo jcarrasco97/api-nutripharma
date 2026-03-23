@@ -24,4 +24,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             "LEFT JOIN farmacias f ON f.usuario_id = u.id " +
             "WHERE u.activo = true", nativeQuery = true)
     List<UsuarioDestinatarioProjection> findUsuariosParaDesplegable();
+
+    Optional<Usuario> findByResetPasswordToken(String token);
 }

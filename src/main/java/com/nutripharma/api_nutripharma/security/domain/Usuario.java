@@ -33,6 +33,13 @@ public class Usuario implements UserDetails { // <-- El cambio clave está aquí
     @Column(nullable = false)
     private Boolean activo;
 
+    // Añade esto justo debajo de 'Boolean activo;'
+    @Column(name = "reset_password_token", length = 100)
+    private String resetPasswordToken;
+
+    @Column(name = "reset_password_expiration")
+    private java.time.LocalDateTime resetPasswordExpiration;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_rol",

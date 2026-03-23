@@ -61,4 +61,46 @@ public class AuthService {
 
         return usuarioRepository.save(nuevoUsuario).getId();
     }
+
+    @Transactional
+    public void solicitarResetPassword(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado en BD."));
+
+        // 1. Generamos un Token aleatorio e impronunciable
+        String token = java.util.UUID.randomUUID().toString();
+
+        // 2. Caduca en 15 minutos exactos
+        usuario.setResetPasswordToken(token);
+        usuario.setResetPasswordExpiration(java.time.LocalDateTime.now().plusMinutes(15));
+        usuarioRepository.save(usuario);
+
+        // 3. SIMULAMOS EL ENVÍO DEL EMAIL (Cámbialo por JavaMailSender en Producción)
+        String enlaceReset = "http://localhost:5173/reset-password?token=" + token;
+        System.out.println("============================================================================");
+        System.out.println("SIMULACIÓN DE EMAIL A: " + email);
+        System.out.println("Asunto: Recuperación de Contraseña - NutriPharma");
+        System.out.println("Cuerpo: Haz clic aquí para restablecer tu contraseña: " + enlaceReset);
+        System.out.println("============================================================================");
+    }
+
+    @Transactional
+    public void cambiarPasswordConToken(String token, String nuevaPassword) {
+        Usuario usuario = usuarioRepository.findByResetPasswordToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Token inválido o expirado."));
+
+        // 1. Verificamos que no hayan pasado los 15 minutos
+        if (usuario.getResetPasswordExpiration().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalStateException("El token de recuperación ha caducado.");
+        }
+
+        // 2. Cambiamos la contraseña (¡ENCRIPTADA SIEMPRE!)
+        usuario.setPassword(passwordEncoder.encode(nuevaPassword));
+
+        // 3. Destruimos el token para que no pueda usarse dos veces
+        usuario.setResetPasswordToken(null);
+        usuario.setResetPasswordExpiration(null);
+
+        usuarioRepository.save(usuario);
+    }
 }

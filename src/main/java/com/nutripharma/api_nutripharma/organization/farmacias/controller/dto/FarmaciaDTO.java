@@ -7,7 +7,8 @@ public class FarmaciaDTO {
             String password,
             String nombre,
             String cif,
-            String direccion
+            String direccion,
+            Boolean esProvinciaLocal
     ) {
     }
 
@@ -17,7 +18,8 @@ public class FarmaciaDTO {
             String nombre,
             String cif,
             String direccion,
-            Double saldoVirtual // <-- NUEVO CAMPO
+            Double saldoVirtual,
+            Boolean esProvinciaLocal
     ) {
     }
 
@@ -25,7 +27,8 @@ public class FarmaciaDTO {
     public record FarmaciaUpdateRequest(
             String nombre,
             String cif,
-            String direccion
+            String direccion,
+            Boolean esProvinciaLocal
     ) {
     }
 }

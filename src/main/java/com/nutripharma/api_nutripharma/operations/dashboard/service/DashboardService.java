@@ -7,6 +7,7 @@ import com.nutripharma.api_nutripharma.operations.dashboard.controller.Dashboard
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository;
 import com.nutripharma.api_nutripharma.sales.pedidos.domain.Pedido;
+import com.nutripharma.api_nutripharma.sales.pedidos.domain.RepartoPedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO;
 
@@ -44,11 +45,11 @@ public class DashboardService {
         LocalDate fechaFin = yearMonth.atEndOfMonth();
 
         // 2. Traer los datos de Base de Datos
-        // OJO: Solo contamos las consultas CONFIRMADAS. Los borradores no suman al sueldo.
         List<Consulta> consultasMes = consultaRepository.findByNutricionistaIdAndEstadoAndFechaBetween(
                 nutricionistaId, EstadoConsulta.VALIDADA, fechaInicio, fechaFin);
 
-        List<Pedido> pedidosMes = pedidoRepository.findByNutricionistaIdAndFechaPedidoBetween(
+        // --- CORRECCIÓN: Usamos el nuevo método del repositorio multicapa ---
+        List<Pedido> pedidosMes = pedidoRepository.findByRepartosNutricionistaIdAndFechaPedidoBetween(
                 nutricionistaId, fechaInicio, fechaFin);
 
         // 3. Cálculos de HORAS
@@ -57,7 +58,6 @@ public class DashboardService {
                 .sum();
 
         double horasTrabajadas = totalMinutosTrabajados / 60.0;
-        // Redondeamos a 2 decimales
         horasTrabajadas = Math.round(horasTrabajadas * 100.0) / 100.0;
 
         double balanceHoras = horasTrabajadas - nutricionista.getHorasContratoMensual();
@@ -69,17 +69,32 @@ public class DashboardService {
         int totalPromocionales = consultasMes.stream().mapToInt(Consulta::getPromociones).sum();
         int totalPersonal = consultasMes.stream().mapToInt(Consulta::getPersonalFarmacia).sum();
 
-        // 5. Cálculos FINANCIEROS (Ventas y Bonus)
-        BigDecimal volumenVentas = pedidosMes.stream()
-                .map(this::calcularTotalPedido)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 5. Cálculos FINANCIEROS (Ventas Multicapa y Bonus)
+        BigDecimal volumenVentas = BigDecimal.ZERO;
 
-        // Bonus = Volumen de Ventas * 0.05
+        for (Pedido p : pedidosMes) {
+            BigDecimal totalPedido = calcularTotalPedido(p);
+
+            // Buscamos el porcentaje específico asignado a esta nutricionista en este pedido
+            BigDecimal porcentajeAsignado = p.getRepartos().stream()
+                    .filter(r -> r.getNutricionista().getId().equals(nutricionistaId))
+                    .findFirst()
+                    .map(RepartoPedido::getPorcentaje)
+                    .orElse(new BigDecimal("100.00")); // Si no hay reparto explícito, asume el 100%
+
+            // Calculamos su parte proporcional: (TotalPedido * Porcentaje) / 100
+            BigDecimal parteProporcional = totalPedido.multiply(porcentajeAsignado)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            volumenVentas = volumenVentas.add(parteProporcional);
+        }
+
+        // Bonus = Volumen de Ventas Proporcional * 0.05
         BigDecimal bonusEstimado = volumenVentas.multiply(PORCENTAJE_BONUS).setScale(2, RoundingMode.HALF_UP);
 
         // 6. Empaquetar y enviar
         return new ResumenMensualNutricionista(
-                yearMonth.getMonth().name(), // Nombre del mes en texto
+                yearMonth.getMonth().name(),
                 anio,
                 horasTrabajadas,
                 nutricionista.getHorasContratoMensual(),
@@ -93,13 +108,12 @@ public class DashboardService {
         );
     }
 
-    // --- NUEVO: Gráfica de Facturación Anual (Admin) ---
+    // --- Gráfica de Facturación Anual (Admin) ---
     @Transactional(readOnly = true)
     public List<DashboardDTO.FacturacionMensualDTO> obtenerFacturacionGlobalAnual(int anio) {
         LocalDate inicioAnio = LocalDate.of(anio, 1, 1);
         LocalDate finAnio = LocalDate.of(anio, 12, 31);
 
-        // Traemos todos los pedidos y consultas del año de golpe (más eficiente que hacer 12 consultas a BD)
         List<Pedido> pedidosAnuales = pedidoRepository.findByFechaPedidoBetween(inicioAnio, finAnio);
         List<Consulta> consultasAnuales = consultaRepository.findByFechaBetween(inicioAnio, finAnio);
 
@@ -109,13 +123,11 @@ public class DashboardService {
         for (int i = 1; i <= 12; i++) {
             final int mesActual = i;
 
-            // Filtramos los pedidos de este mes (Ignoramos los CANCELADOS)
             BigDecimal ingresosPedidos = pedidosAnuales.stream()
                     .filter(p -> p.getFechaPedido().getMonthValue() == mesActual && p.getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
                     .map(this::calcularTotalPedido)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Filtramos las consultas de este mes (Solo CONFIRMADAS)
             BigDecimal ingresosConsultas = consultasAnuales.stream()
                     .filter(c -> c.getFecha().getMonthValue() == mesActual && c.getEstado() == EstadoConsulta.VALIDADA)
                     .map(c -> new BigDecimal((c.getNuevas() * 25) + (c.getRevisiones() * 20)))
@@ -132,7 +144,7 @@ public class DashboardService {
         return facturacionMeses;
     }
 
-    // --- NUEVO: Eventos para el Calendario (Admin) ---
+    // --- Eventos para el Calendario (Admin) ---
     @Transactional(readOnly = true)
     public List<DashboardDTO.EventoCalendarioDTO> obtenerEventosCalendario(int anio, int mes) {
         YearMonth yearMonth = YearMonth.of(anio, mes);
@@ -141,7 +153,6 @@ public class DashboardService {
 
         List<DashboardDTO.EventoCalendarioDTO> eventos = new java.util.ArrayList<>();
 
-        // 1. Añadimos los Pedidos al calendario
         pedidoRepository.findByFechaPedidoBetween(inicioMes, finMes).forEach(p -> {
             String nombreDestino = p.getFarmacia().getNombre();
             eventos.add(new DashboardDTO.EventoCalendarioDTO(
@@ -154,7 +165,6 @@ public class DashboardService {
             ));
         });
 
-        // 2. Añadimos las Consultas al calendario
         consultaRepository.findByFechaBetween(inicioMes, finMes).forEach(c -> {
             String nombreNutri = c.getNutricionista().getNombre() + " " + c.getNutricionista().getApellidos();
             eventos.add(new DashboardDTO.EventoCalendarioDTO(

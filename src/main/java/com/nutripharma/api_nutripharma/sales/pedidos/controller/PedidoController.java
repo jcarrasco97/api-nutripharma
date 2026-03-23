@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.sales.pedidos.controller;
 
+import com.nutripharma.api_nutripharma.sales.pedidos.controller.dto.PedidoDTO;
 import com.nutripharma.api_nutripharma.sales.pedidos.controller.dto.PedidoDTO.PedidoRequest;
 import com.nutripharma.api_nutripharma.sales.pedidos.controller.dto.PedidoDTO.PedidoResponse;
 import com.nutripharma.api_nutripharma.sales.pedidos.service.PedidoService;
@@ -47,7 +48,9 @@ public class PedidoController {
     // 👇 NUEVA RUTA PARA EL ADMIN 👇
     @PutMapping("/{id}/enviar")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PedidoResponse> enviarPedidoAdmin(@PathVariable Long id) {
-        return ResponseEntity.ok(pedidoService.marcarComoEnviado(id));
+    public ResponseEntity<PedidoResponse> marcarComoEnviado(
+            @PathVariable Long id,
+            @RequestBody(required = false) List<PedidoDTO.RepartoRequest> repartos) {
+        return ResponseEntity.ok(pedidoService.marcarComoEnviado(id, repartos));
     }
 }

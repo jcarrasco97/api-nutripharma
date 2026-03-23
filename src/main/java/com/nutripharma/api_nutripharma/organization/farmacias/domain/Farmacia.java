@@ -34,4 +34,7 @@ public class Farmacia {
     @Column(name = "saldo_virtual", nullable = false)
     @Builder.Default
     private Double saldoVirtual = 0.0;
+    @Column(name = "es_provincia_local", nullable = false)
+    @Builder.Default
+    private Boolean esProvinciaLocal = true; // Por defecto Almería (PVF)
 }

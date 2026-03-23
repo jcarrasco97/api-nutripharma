@@ -53,7 +53,7 @@ public class FarmaciaService {
                 .nombre(request.nombre())
                 .cif(request.cif())
                 .direccion(request.direccion())
-                // El builder por defecto ya pone saldoVirtual a 0.0, pero Spring lo gestiona
+                .esProvinciaLocal(request.esProvinciaLocal() != null ? request.esProvinciaLocal() : true)
                 .build();
         Farmacia guardada = farmaciaRepository.save(nuevaFarmacia);
 
@@ -80,6 +80,7 @@ public class FarmaciaService {
         f.setNombre(request.nombre());
         f.setCif(request.cif());
         f.setDireccion(request.direccion());
+        f.setEsProvinciaLocal(request.esProvinciaLocal());
 
         return mapToResponse(farmaciaRepository.save(f));
     }
@@ -104,7 +105,8 @@ public class FarmaciaService {
                 f.getNombre(),
                 f.getCif(),
                 f.getDireccion(),
-                f.getSaldoVirtual() // <-- ¡AQUÍ ESTÁ LA PIEZA QUE FALTABA!
+                f.getSaldoVirtual(),
+                f.getEsProvinciaLocal()
         );
     }
 }
