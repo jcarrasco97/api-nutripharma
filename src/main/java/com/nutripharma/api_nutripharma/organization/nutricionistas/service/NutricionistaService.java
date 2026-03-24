@@ -10,6 +10,7 @@ import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import com.nutripharma.api_nutripharma.security.repository.RolRepository;
 import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -136,13 +137,17 @@ public class NutricionistaService {
 
     @Transactional
     public void eliminarNutricionista(Long id) {
-        Nutricionista n = nutricionistaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada"));
+        Nutricionista nutri = nutricionistaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Nutricionista no encontrada"));
 
-        Long usuarioId = n.getUsuario().getId();
+        // Desactivamos su usuario
+        Usuario usuario = nutri.getUsuario();
+        usuario.setActivo(false);
+        usuarioRepository.save(usuario);
 
-        nutricionistaRepository.delete(n);
-        usuarioRepository.deleteById(usuarioId);
+        // Al borrar la Nutricionista, sus asignaciones se borran por el
+        // cascade = CascadeType.ALL y orphanRemoval = true que tienes en la entidad.
+        nutricionistaRepository.delete(nutri);
     }
 
     private NutricionistaDTO.NutricionistaResponse mapToResponse(Nutricionista n) {
@@ -164,5 +169,16 @@ public class NutricionistaService {
                 n.getHorasContratoMensual(),
                 asignacionesResponse // <-- Retornamos la lista compleja
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository.NutriInactivoProjection> obtenerBajas() {
+        return nutricionistaRepository.findHistorialBajas();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void restaurarNutricionista(Long id) {
+        nutricionistaRepository.reactivarUsuario(id);
+        nutricionistaRepository.reactivarNutricionista(id);
     }
 }

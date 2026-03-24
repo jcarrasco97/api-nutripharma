@@ -59,4 +59,20 @@ public class NutricionistaController {
         nutricionistaService.eliminarNutricionista(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/bajas")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository.NutriInactivoProjection>> listarBajas() {
+        return ResponseEntity.ok(nutricionistaService.obtenerBajas());
+    }
+
+    @PutMapping("/{id}/restaurar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> restaurarNutricionista(@PathVariable Long id) {
+        // En un proyecto gigante esto pasaría por el Service, pero al ser una query nativa
+        // directa de 1 línea, podemos inyectar el repositorio o crear el método en el service.
+        // Asumiendo que lo pasamos por el Service (Añade el método en NutricionistaService):
+        nutricionistaService.restaurarNutricionista(id);
+        return ResponseEntity.ok().build();
+    }
 }

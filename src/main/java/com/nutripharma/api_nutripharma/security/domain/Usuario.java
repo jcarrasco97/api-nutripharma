@@ -2,6 +2,8 @@ package com.nutripharma.api_nutripharma.security.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,6 +15,9 @@ import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "usuarios")
+// --- MAGIA DEL BORRADO LÓGICO ---
+@SQLDelete(sql = "UPDATE usuarios SET activo = false WHERE id=?")
+@SQLRestriction("activo = true")
 @Getter
 @Setter
 @NoArgsConstructor

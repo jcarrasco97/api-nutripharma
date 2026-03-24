@@ -33,18 +33,21 @@ public class DataSeeder implements CommandLineRunner {
         log.info("Iniciando la validación y siembra de datos maestros de Seguridad...");
 
         // 1. Asegurar la existencia de los roles base del sistema (RBAC)
+        Rol superAdminRol = crearRolSiNoExiste("ROLE_SUPERADMIN"); // <-- AÑADIDO
         Rol adminRol = crearRolSiNoExiste("ROLE_ADMIN");
         Rol nutriRol = crearRolSiNoExiste("ROLE_NUTRICIONISTA");
         Rol farmaciaRol = crearRolSiNoExiste("ROLE_FARMACIA");
 
-        // 2. Asegurar la existencia del usuario administrador principal
+        // 2. Asegurar la existencia del usuario administrador principal (Paco)
         String adminEmail = "admin@nutripharma.com";
+
         if (!usuarioRepository.existsByEmail(adminEmail)) {
             Usuario adminUser = Usuario.builder()
                     .email(adminEmail)
                     .password(passwordEncoder.encode("admin123"))
                     .activo(true)
-                    .roles(Set.of(adminRol, nutriRol))
+                    // Le damos los 3 sombreros: SuperAdmin, Admin y Nutricionista
+                    .roles(Set.of(superAdminRol, adminRol, nutriRol)) // <-- ACTUALIZADO
                     .build();
 
             usuarioRepository.save(adminUser);

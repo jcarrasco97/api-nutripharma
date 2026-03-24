@@ -52,4 +52,17 @@ public class FarmaciaController {
         farmaciaService.eliminarFarmacia(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/bajas")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository.FarmaciaInactivaProjection>> listarBajas() {
+        return ResponseEntity.ok(farmaciaService.obtenerBajas());
+    }
+
+    @PutMapping("/{id}/restaurar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> restaurarFarmacia(@PathVariable Long id) {
+        farmaciaService.restaurarFarmacia(id);
+        return ResponseEntity.ok().build();
+    }
 }

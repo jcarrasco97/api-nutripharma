@@ -2,11 +2,16 @@ package com.nutripharma.api_nutripharma.sales.catalogo.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "productos")
+// Arriba, debajo de @Table(name = "productos")
+@SQLDelete(sql = "UPDATE productos SET activo = false WHERE id=?")
+@SQLRestriction("activo = true")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,4 +52,9 @@ public class Producto {
     @Builder.Default
     @Column(name = "hay_existencias", nullable = false)
     private Boolean hayExistencias = true;
+
+    // --- NUEVO: Para el Soft Delete (Descatalogado) ---
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean activo = true;
 }

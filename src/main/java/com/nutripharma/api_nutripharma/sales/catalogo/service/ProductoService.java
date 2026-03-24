@@ -59,6 +59,11 @@ public class ProductoService {
         productoRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
+    public List<com.nutripharma.api_nutripharma.sales.catalogo.repository.ProductoRepository.ProductoInactivoProjection> obtenerBajas() {
+        return productoRepository.findHistorialBajas();
+    }
+
     private ProductoResponse mapToResponse(Producto p) {
         return new ProductoResponse(
                 p.getId(),

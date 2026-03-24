@@ -696,3 +696,92 @@ módulo entero hacia otra aplicación.
 ### 🗄️ Base de Datos
 
 * Purgado y recreación de esquemas (Drop/Create) para consolidar la tabla `pedido_reparto`.
+
+
+## [24/03/2026] - Comisiones Dinámicas, Soft Delete, RBAC Avanzado y Rendimiento
+
+### ⚙️ Backend (Spring Boot)
+* **Comisiones Variables:** Eliminado el "hardcode" del 30% en el cálculo del Saldo Virtual. Implementada la columna `porcentaje_comision` en `Farmacia` y actualizado `ConsultaService` para calcular el reparto dinámicamente.
+* **Módulo Personal Interno:** Creado `PersonalInternoService` y su controlador para que el administrador pueda dar de alta nuevas credenciales con el rol `ROLE_ADMIN` directamente desde el panel.
+* **Evolución RBAC (Control de Accesos):** Introducido el rol `ROLE_SUPERADMIN` en el DataSeeder (asignado a Paco) para crear la jerarquía que blindará la eliminación de otros administradores.
+* **Implementación de Borrado Lógico (Soft Delete):** * Añadidas anotaciones `@SQLDelete` y `@SQLRestriction("activo = true")` en `Producto`, `Usuario`, `Farmacia` y `Nutricionista`.
+  * Los comandos `repository.delete()` ahora ejecutan un `UPDATE` en segundo plano, manteniendo la integridad referencial de los datos históricos (pedidos y consultas antiguas).
+
+### 💻 Frontend (React)
+* **Formularios Dinámicos:** Integrado el campo "Porcentaje de Comisión" en el CRUD de Farmacias (`VistaAdministracion.jsx`).
+* **Panel de Personal:** Habilitada la nueva pestaña de "Personal Interno" para la creación ágil de credenciales maestras.
+
+---
+
+> 💡 **RINCÓN ARQUITECTÓNICO Y APRENDIZAJES DE DISEÑO (ENTERPRISE)**
+>
+> * **Gestión del Almacenamiento (El mito de los 20GB):**
+    >   * Las bases de datos relacionales (texto plano) ocupan muy poco espacio. Un millón de registros apenas suponen ~300MB. La saturación en servidores Legacy suele deberse a archivos físicos, logs sin rotación y backups acumulados.
+>   * *Solución aplicada:* Externalización total de archivos a Google Drive (la DB solo guarda el ID alfanumérico). Para datos a largo plazo (+5 años), se aplicará archivado en frío (Cold Storage) exportando los registros con `activo=false` a archivos CSV comprimidos antes de ejecutar un *Hard Delete* real.
+>
+> * **Borrado Lógico vs Borrado Físico:**
+    >   * En software médico y financiero **nunca** se ejecuta un `DELETE` en SQL. Se utiliza el Soft Delete (`activo=false`) para aislar los datos visualmente en el Frontend sin destruir la trazabilidad del Backend. Así, un empleado despedido no desaparece de las auditorías de nóminas pasadas, y un producto descatalogado no rompe el historial de facturación de las farmacias.
+>
+> * **Asincronía, Concurrencia y el JWT (Stateless):**
+    >   * El comportamiento de "sobrescribir sesiones" al abrir múltiples pestañas no es un límite del servidor, sino del `localStorage` del navegador, que es compartido por el mismo dominio. (Se testea abriendo modo incógnito o navegadores distintos).
+>   * *Escalabilidad del Despliegue:* El servidor Spring Boot (Tomcat) es multihilo. El uso de tokens JWT es *Stateless* (sin estado), lo que significa que el servidor no consume memoria RAM guardando la sesión de cada usuario; simplemente valida la firma criptográfica en milisegundos. Esta arquitectura soporta miles de peticiones simultáneas sin cuellos de botella.
+
+## Fase: Sistema de Borrado Lógico y "Cementerios de Datos" (Trazabilidad Fase 1)
+
+### 🛠️ Backend (Spring Boot)
+* **Implementación de Soft Delete (Borrado Lógico):** Modificación de las entidades `Nutricionista`, `Farmacia`, `Producto` y `Administrador` añadiendo el atributo `Boolean activo = true`.
+* **Anotaciones de Hibernate:** Uso de `@SQLDelete` para interceptar las peticiones de borrado y convertirlas en `UPDATE tabla SET activo = false`, y `@SQLRestriction("activo = true")` para que las consultas por defecto solo devuelvan registros activos.
+* **Proyecciones SQL Anidadas:** Creación de interfaces anidadas (ej. `NutriInactivoProjection`, `AdminInactivoProjection`) dentro de los repositorios para mapear exclusivamente los datos necesarios del historial de bajas.
+* **Consultas Nativas (Native Queries):** Implementación de métodos con `@Query(value = "...", nativeQuery = true)` para saltarse la restricción de Hibernate y poder rescatar los registros inactivos (`activo = false`).
+* **Controladores y Seguridad:** Creación de endpoints `/bajas` protegidos con `@PreAuthorize` e integración del parche de CORS (`@CrossOrigin`).
+* **Escudo Protector de SuperAdmin:** Modificación en `PersonalInternoService` para impedir el borrado de cualquier usuario con el rol `ROLE_SUPERADMIN`, lanzando una excepción `400 Bad Request` controlada.
+
+<div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
+<strong>💡 LECCIONES DE ARQUITECTURA Y BUENAS PRÁCTICAS 💡</strong><br><br>
+
+<strong>1. El "Hard Delete" está prohibido en Sistemas Enterprise:</strong> En aplicaciones del sector médico o financiero, jamás se elimina una fila de la base de datos, ya que destruiría la integridad referencial (Foreign Keys) de facturas, consultas o contratos pasados. El <em>Borrado Lógico</em> (Soft Delete) permite mantener el ID vivo en la sombra.<br><br>
+
+<strong>2. Gestión del "Root User" (Cuenta Break-Glass):</strong> El usuario fundador (SuperAdmin inyectado por el DataSeeder) existe en la tabla base de <code>usuarios</code> (para loguearse) pero NO en la tabla derivada de <code>administradores</code>. Esto es una excelente práctica de ciberseguridad corporativa: el Root User debe ser un "fantasma" sin interfaz visual para evitar borrados accidentales o manipulaciones desde el propio panel de control.<br><br>
+
+<strong>3. El Misterio del "Falso 404":</strong> Cuando el Frontend recibe un error <code>404 Not Found</code> al llamar a una API que SÍ existe, suele ser provocado por un fallo crítico (500) en la base de datos (como buscar una columna inexistente). Spring Boot, al explotar, intenta redirigir el fallo a una ruta <code>/error</code> que no tenemos configurada, lo que resulta en un 404 engañoso que enmascara el problema real.
+</div>
+
+### 🖥️ Frontend (React & Feature-Based Architecture)
+* **Alineación Absoluta de URLs:** Estandarización de las constantes `API_URL` en los servicios (`nutricionistasService.js`, `farmaciaService.js`, `personalInternoService.js`) apuntando a rutas en plural para encajar con el Backend y evitar problemas de concatenación.
+* **Carga Concurrente Tolerante a Fallos:** Modificación de las funciones `cargarDatos` utilizando `Promise.all`. Se ha implementado un bloque `.catch(() => [])` en las peticiones del historial de bajas para evitar que un error de red bloquee la renderización de la lista principal.
+* **UI del "Cementerio de Datos":** Construcción de un toggle visual en `VistaAdministracion.jsx` y `VistaPersonalInterno.jsx` que despliega una lista secundaria de solo lectura. Se ha usado estilizado con Tailwind (`grayscale opacity-75 line-through`) para dar feedback visual claro de que son registros inactivos/borrados.
+
+<div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
+<strong>💡 LECCIONES DE FRONTEND Y FLUJO DE DATOS 💡</strong><br><br>
+
+<strong>1. El Peligro de Promise.all:</strong> Si solicitas 5 endpoints al mismo tiempo usando <code>await Promise.all([...])</code> y uno solo devuelve un error (ej. un 403 o 404), la promesa entera es rechazada y la vista no carga absolutamente nada. Atar un <code>.catch()</code> individual a las peticiones no críticas (como las bajas) blinda la experiencia del usuario.<br><br>
+
+<strong>2. Renderizado Condicional de Trazabilidad:</strong> Al separar los estados (<code>admins</code> vs <code>adminsBajas</code>), la UI se mantiene limpia. Los datos "zombis" no contaminan la tabla principal de trabajo, pero están a un solo clic de distancia para propósitos de auditoría o futura restauración.
+</div>
+
+## Fase: Integridad Referencial y Resurrección de Datos (Trazabilidad Fase 2)
+
+### 🛠️ Backend (Spring Boot)
+* **Mecanismo de Resurrección Atómica:** Implementación de métodos de restauración en `NutricionistaRepository` y `FarmaciaRepository` utilizando consultas nativas.
+* **Resolución del "Síndrome del Zombi":** Se ha diseñado una lógica de restauración en dos pasos (o vía Join) que reactiva simultáneamente la entidad de negocio (`Nutricionista`/`Farmacia`) y su entidad de seguridad asociada (`Usuario`). Esto garantiza que el sistema no sufra de punteros rotos o `EntityNotFoundException` al recargar datos.
+* **Gestión de Vínculos en Cascada:** Refactorización de `FarmaciaService` para realizar una limpieza de la tabla intermedia `nutricionista_farmacia` al ejecutar un borrado lógico. Esto evita que las nutricionistas activas mantengan referencias a farmacias inactiva, eliminando errores de carga en el listado principal.
+* **Robustez en Repositorios:** Introducción de `@Modifying` y `@Transactional` a nivel de query nativa para asegurar que los cambios en el estado `activo` persistan correctamente sin interferencia de la caché de Hibernate.
+
+<div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
+<strong>💡 LECCIONES DE ARQUITECTURA SENIOR: EL ALMA Y EL CUERPO 💡</strong><br><br>
+
+<strong>1. Atomicidad en la Restauración:</strong> En sistemas con seguridad desacoplada (Usuario vs. Perfil), la "muerte" y la "resurrección" deben afectar a ambas tablas. Si resucitas el cuerpo (Perfil) pero dejas el alma muerta (Usuario), Hibernate lanzará un error interno al intentar mapear la relación, lo que el frontend interpretará erróneamente como un 404.<br><br>
+
+<strong>2. Limpieza de Vínculos (Clean Sweep):</strong> Al realizar un borrado lógico de una entidad que es "hija" o "parte de una relación" (como una Farmacia en una lista de asignaciones), es obligatorio limpiar las relaciones activas. Mantener un vínculo vivo hacia un objeto inactivo es una bomba de relojería para las consultas JPA que utilizan filtros de exclusión (<code>@SQLRestriction</code>).
+</div>
+
+### 🖥️ Frontend (React)
+* **Funcionalidad de Restauración (Undelete):** Integración del botón de acción `handleRestaurar` en los cementerios de Administración.
+* **Sincronización de Estado:** Implementación de recarga forzada tras la restauración para mover registros del cementerio a la lista operativa en tiempo real.
+* **Iconografía de Trazabilidad:** Uso de `RefreshCw` para diferenciar claramente las acciones de recuperación de las de creación.
+
+### 📅 Próximos Pasos (Hoja de Ruta)
+* **Cierre de Simetría:** Aplicar el sistema de borrado lógico y cementerio a las secciones de **Productos** y **Administradores** restantes.
+* **Gestión de Restricciones Únicas:** Implementar lógica para manejar conflictos de DNI, CIF o Email cuando un nuevo registro intenta usar datos de un registro que está en el "cementerio".
+* **Trazabilidad Profunda:** Añadir metadatos de auditoría (`borrado_por`, `fecha_baja`) para mostrar quién y cuándo ejecutó las acciones de baja.
+* **Módulo de Resurrección Avanzada:** Habilitar la edición de campos críticos durante el proceso de restauración para actualizar contratos o condiciones comerciales.

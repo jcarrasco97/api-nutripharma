@@ -5,10 +5,12 @@ import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.Far
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
+import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.AsignacionFarmaciaRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import com.nutripharma.api_nutripharma.security.repository.RolRepository;
 import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,7 +38,6 @@ public class FarmaciaService {
             throw new IllegalArgumentException("Ya existe una farmacia con ese CIF.");
         }
 
-        // Fíjate que aquí buscamos ROLE_FARMACIA
         Rol rolFarmacia = rolRepository.findByNombre("ROLE_FARMACIA")
                 .orElseThrow(() -> new RuntimeException("Error: Rol no encontrado."));
 
@@ -54,6 +55,7 @@ public class FarmaciaService {
                 .cif(request.cif())
                 .direccion(request.direccion())
                 .esProvinciaLocal(request.esProvinciaLocal() != null ? request.esProvinciaLocal() : true)
+                .porcentajeComision(request.porcentajeComision() != null ? request.porcentajeComision() : 30.0) // <-- NUEVO
                 .build();
         Farmacia guardada = farmaciaRepository.save(nuevaFarmacia);
 
@@ -82,20 +84,34 @@ public class FarmaciaService {
         f.setDireccion(request.direccion());
         f.setEsProvinciaLocal(request.esProvinciaLocal());
 
+        // --- NUEVO ---
+        if (request.porcentajeComision() != null) {
+            f.setPorcentajeComision(request.porcentajeComision());
+        }
+
         return mapToResponse(farmaciaRepository.save(f));
     }
 
+    // Inyecta el nuevo repositorio en el constructor
+    private final AsignacionFarmaciaRepository asignacionRepository;
+
     @Transactional
     public void eliminarFarmacia(Long id) {
-        Farmacia f = farmaciaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
+        Farmacia farmacia = farmaciaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Farmacia no encontrada"));
 
-        // Extraemos el ID del usuario antes de borrar la farmacia
-        Long usuarioId = f.getUsuario().getId();
+        // 1. Desactivamos el Usuario (Alma)
+        Usuario usuario = farmacia.getUsuario();
+        usuario.setActivo(false);
+        usuarioRepository.save(usuario);
 
-        // Borramos primero la Farmacia (que tiene la clave foránea) y luego sus credenciales
-        farmaciaRepository.delete(f);
-        usuarioRepository.deleteById(usuarioId);
+        // 2. Limpiamos las asignaciones (Vínculos)
+        // Esto evita que las Nutricionistas intenten cargar una farmacia inactiva
+        asignacionRepository.deleteByFarmaciaId(id);
+
+        // 3. Desactivamos la Farmacia (Cuerpo)
+        // El @SQLDelete se encargará de hacer el UPDATE activo = false automáticamente
+        farmaciaRepository.delete(farmacia);
     }
 
     private FarmaciaResponse mapToResponse(Farmacia f) {
@@ -106,7 +122,19 @@ public class FarmaciaService {
                 f.getCif(),
                 f.getDireccion(),
                 f.getSaldoVirtual(),
-                f.getEsProvinciaLocal()
+                f.getEsProvinciaLocal(),
+                f.getPorcentajeComision() // <-- NUEVO
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository.FarmaciaInactivaProjection> obtenerBajas() {
+        return farmaciaRepository.findHistorialBajas();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void restaurarFarmacia(Long id) {
+        farmaciaRepository.reactivarUsuario(id);
+        farmaciaRepository.reactivarFarmacia(id);
     }
 }

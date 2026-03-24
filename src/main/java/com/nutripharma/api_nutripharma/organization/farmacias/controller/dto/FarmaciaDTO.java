@@ -8,7 +8,8 @@ public class FarmaciaDTO {
             String nombre,
             String cif,
             String direccion,
-            Boolean esProvinciaLocal
+            Boolean esProvinciaLocal,
+            Double porcentajeComision // <-- NUEVO
     ) {
     }
 
@@ -19,16 +20,17 @@ public class FarmaciaDTO {
             String cif,
             String direccion,
             Double saldoVirtual,
-            Boolean esProvinciaLocal
+            Boolean esProvinciaLocal,
+            Double porcentajeComision // <-- NUEVO
     ) {
     }
 
-    // Petición para modificar una farmacia existente (sin tocar contraseñas ni saldos)
     public record FarmaciaUpdateRequest(
             String nombre,
             String cif,
             String direccion,
-            Boolean esProvinciaLocal
+            Boolean esProvinciaLocal,
+            Double porcentajeComision // <-- NUEVO
     ) {
     }
 }

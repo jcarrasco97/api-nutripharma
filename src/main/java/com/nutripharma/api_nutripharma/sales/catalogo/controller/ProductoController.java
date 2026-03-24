@@ -3,6 +3,7 @@ package com.nutripharma.api_nutripharma.sales.catalogo.controller;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoRequest;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoResponse;
+import com.nutripharma.api_nutripharma.sales.catalogo.repository.ProductoRepository;
 import com.nutripharma.api_nutripharma.sales.catalogo.service.ProductoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,5 +43,11 @@ public class ProductoController {
     public ResponseEntity<Void> eliminarProducto(@PathVariable Long id) {
         productoService.eliminarProducto(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/bajas")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ProductoRepository.ProductoInactivoProjection>> listarBajas() {
+        return ResponseEntity.ok(productoService.obtenerBajas());
     }
 }

@@ -3,9 +3,14 @@ package com.nutripharma.api_nutripharma.organization.farmacias.domain;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "farmacias")
+// --- MAGIA DEL BORRADO LÓGICO ---
+@SQLDelete(sql = "UPDATE farmacias SET activo = false WHERE id=?")
+@SQLRestriction("activo = true")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -37,4 +42,12 @@ public class Farmacia {
     @Column(name = "es_provincia_local", nullable = false)
     @Builder.Default
     private Boolean esProvinciaLocal = true; // Por defecto Almería (PVF)
+    // --- NUEVO: Comisión Variable ---
+    @Column(name = "porcentaje_comision", nullable = false)
+    @Builder.Default
+    private Double porcentajeComision = 30.0; // 30%
+    // --- NUEVO: Para el Soft Delete ---
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean activo = true;
 }
