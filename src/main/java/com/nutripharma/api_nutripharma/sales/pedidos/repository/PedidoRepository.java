@@ -27,4 +27,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             @Param("inicio") LocalDate inicio,
             @Param("fin") LocalDate fin
     );
+
+    @Query("SELECT COUNT(l) FROM LineaPedido l WHERE l.producto.id = :productoId AND l.pedido.estado = 'PENDIENTE_ENVIO'")
+    long countPedidosPendientesConProducto(@org.springframework.data.repository.query.Param("productoId") Long productoId);
 }

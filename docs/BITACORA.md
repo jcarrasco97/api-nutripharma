@@ -822,3 +822,19 @@ módulo entero hacia otra aplicación.
 
 <strong>2. Seguridad sin fricción:</strong> Gracias a la arquitectura Stateless con JWT, no necesitamos pasar el ID del usuario desde React en cada petición de borrado (lo cual sería vulnerable a manipulaciones). El Backend lee la identidad firmada e inmutable directamente del token a través del <code>SecurityContextHolder</code>.
 </div>
+
+
+## Fase: Lógica Comercial B2B, Resiliencia y Pedidos Proxy
+
+### 🛠️ Backend (Spring Boot)
+* **Gestión de Stock Dinámico:** Implementado endpoint `PATCH` para alternar la disponibilidad de un producto (`hay_existencias`) sin necesidad de descatalogarlo.
+* **Rediseño del Manejador de Excepciones:** Destrucción del "agujero negro" de excepciones. Mapeo explícito de `AccessDeniedException` (403), `IllegalArgumentException` (400) y `RuntimeException` (500) para un debugeo transparente.
+* **Auditoría B2B (Pedidos Proxy):** Sustitución del flag booleano `creadoPorAdmin` por el campo `creado_por` (String) en la entidad `Pedido`, inyectando automáticamente el email del creador (Admin, Farmacia o Nutricionista) desde el token JWT.
+* **Integridad Referencial en Soft Deletes (Escudo Anti-500):** Aplicación de la anotación `@NotFound(action = NotFoundAction.IGNORE)` en las relaciones de `Pedido`, `LineaPedido` y `RepartoPedido`. Permite cargar el historial de ventas intacto aunque los productos, farmacias o nutricionistas hayan sido descatalogados.
+* **Regla de Negocio (Bloqueo de Borrado):** Implementada validación en `ProductoService` que impide descatalogar un producto si existen pedidos en estado `PENDIENTE_ENVIO` que lo contengan.
+
+### 🖥️ Frontend (React)
+* **Escudo de Promesas (Resiliencia UI):** Blindaje de los `Promise.all` en los Dashboards de Resumen utilizando `.catch(() => null)`. Evita la temida "pantalla en blanco" cuando un usuario intenta cargar widgets para los que no tiene permisos (403).
+* **UI de Pedidos Proxy:** Adaptación de `VistaPedidos` para que los administradores puedan actuar como teleoperadores, seleccionando cualquier farmacia destino y generando pedidos en su nombre.
+* **Motor de Precios Dinámico en Front:** El catálogo ajusta automáticamente la visualización de PVF o PVP dependiendo de la propiedad `esProvinciaLocal` de la farmacia destino seleccionada.
+* **Limpieza del Virtual DOM:** Corrección del renderizado del menú lateral en `Dashboard.jsx` para evitar colisiones de `keys` en usuarios con roles múltiples.

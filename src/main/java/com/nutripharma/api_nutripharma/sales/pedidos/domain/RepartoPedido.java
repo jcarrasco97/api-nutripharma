@@ -25,6 +25,7 @@ public class RepartoPedido {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nutricionista_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE) // <-- AÑADIR ESTO
     private Nutricionista nutricionista;
 
     @Column(name = "porcentaje", nullable = false, precision = 5, scale = 2)

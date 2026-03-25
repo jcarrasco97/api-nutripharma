@@ -40,7 +40,6 @@ public class PedidoDTO {
             Long farmaciaId,
             LocalDate fechaPedido,
             List<LineaPedidoRequest> lineas,
-            Boolean creadoPorAdmin,
             List<RepartoRequest> repartos // <-- Ahora recibimos la lista de quién se lleva cuánto
     ) {}
 
@@ -51,7 +50,7 @@ public class PedidoDTO {
             EstadoPedido estado,
             BigDecimal totalPedido,
             List<LineaPedidoResponse> lineas,
-            Boolean creadoPorAdmin,
+            String creadoPor,
             List<RepartoResponse> repartos // <-- Devolvemos el desglose
     ) {}
 }

@@ -27,6 +27,7 @@ public class LineaPedido {
     // Qué producto se está comprando
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "producto_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE) // <-- AÑADIR ESTO
     private Producto producto;
 
     @Column(nullable = false)

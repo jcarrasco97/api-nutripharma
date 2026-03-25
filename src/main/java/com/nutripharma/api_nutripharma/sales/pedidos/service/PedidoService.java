@@ -37,13 +37,17 @@ public class PedidoService {
         Farmacia farmacia = farmaciaRepository.findById(request.farmaciaId())
                 .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
 
+        // 🛡️ SEGURIDAD: Extraemos la identidad inviolable del token JWT
+        String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+
         Pedido nuevoPedido = Pedido.builder()
                 .farmacia(farmacia)
                 .fechaPedido(request.fechaPedido())
                 .estado(EstadoPedido.PENDIENTE_ENVIO)
                 .lineas(new ArrayList<>())
                 .repartos(new ArrayList<>())
-                .creadoPorAdmin(request.creadoPorAdmin() != null ? request.creadoPorAdmin() : false)
+                .creadoPor(usuarioActual) // <-- INYECCIÓN DE AUDITORÍA
                 .build();
 
         // 1. LÓGICA DE REPARTO MULTICAPA
@@ -194,31 +198,54 @@ public class PedidoService {
 
     private PedidoResponse mapToResponse(Pedido p) {
         List<LineaPedidoResponse> lineasResponse = p.getLineas().stream()
-                .map(l -> new LineaPedidoResponse(
-                        l.getId(),
-                        l.getProducto().getNombreProducto(),
-                        l.getCantidad(),
-                        l.getBonificados(),
-                        l.getPrecioAplicado(),
-                        l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())),
-                        l.getPagadoConSaldo() != null && l.getPagadoConSaldo()
-                )).collect(Collectors.toList());
+                .map(l -> {
+                    // ESCUDO ANTI-FANTASMAS PARA PRODUCTOS
+                    String nombreProd = (l.getProducto() != null)
+                            ? l.getProducto().getNombreProducto()
+                            : "[PRODUCTO DESCATALOGADO]";
+
+                    return new LineaPedidoResponse(
+                            l.getId(),
+                            nombreProd, // Usamos el nombre seguro
+                            l.getCantidad(),
+                            l.getBonificados(),
+                            l.getPrecioAplicado(),
+                            l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())),
+                            l.getPagadoConSaldo() != null && l.getPagadoConSaldo()
+                    );
+                }).collect(Collectors.toList());
 
         List<RepartoResponse> repartosResponse = p.getRepartos().stream()
-                .map(r -> new RepartoResponse(
-                        r.getNutricionista().getId(),
-                        r.getNutricionista().getNombre() + " " + r.getNutricionista().getApellidos(),
-                        r.getPorcentaje()
-                )).collect(Collectors.toList());
+                .map(r -> {
+                    // ESCUDO ANTI-FANTASMAS PARA NUTRICIONISTAS
+                    String nombreNutri = (r.getNutricionista() != null)
+                            ? r.getNutricionista().getNombre() + " " + r.getNutricionista().getApellidos()
+                            : "[NUTRICIONISTA DE BAJA]";
+                    Long idNutri = (r.getNutricionista() != null) ? r.getNutricionista().getId() : 0L;
+
+                    return new RepartoResponse(
+                            idNutri,
+                            nombreNutri,
+                            r.getPorcentaje()
+                    );
+                }).collect(Collectors.toList());
+
+        // ESCUDO ANTI-FANTASMAS PARA FARMACIAS
+        String nombreFarmacia = (p.getFarmacia() != null)
+                ? p.getFarmacia().getNombre()
+                : "[FARMACIA DADA DE BAJA]";
+
+        // Aseguramos que el creador no sea nulo si es un pedido antiguo
+        String creador = (p.getCreadoPor() != null) ? p.getCreadoPor() : "Sistema";
 
         return new PedidoResponse(
                 p.getId(),
-                p.getFarmacia().getNombre(),
+                nombreFarmacia,
                 p.getFechaPedido(),
                 p.getEstado(),
                 calcularTotalRealPedido(p),
                 lineasResponse,
-                p.getCreadoPorAdmin(),
+                creador,
                 repartosResponse
         );
     }

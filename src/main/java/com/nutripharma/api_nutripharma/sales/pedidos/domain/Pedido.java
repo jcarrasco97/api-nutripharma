@@ -23,6 +23,7 @@ public class Pedido {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "farmacia_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE) // <-- AÑADIR ESTO
     private Farmacia farmacia;
 
     @Column(name = "fecha_pedido", nullable = false)
@@ -32,9 +33,10 @@ public class Pedido {
     @Column(name = "estado", nullable = false)
     private EstadoPedido estado;
 
-    @Column(name = "creado_por_admin", nullable = false)
-    @Builder.Default
-    private Boolean creadoPorAdmin = false;
+    // --- AUDITORÍA DE CREACIÓN ---
+    // Guardará el email de la Farmacia, Nutricionista o Admin (Proxy) que creó el pedido
+    @Column(name = "creado_por", nullable = false)
+    private String creadoPor;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

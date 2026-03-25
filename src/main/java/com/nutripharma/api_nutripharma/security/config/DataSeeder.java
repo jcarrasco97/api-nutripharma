@@ -46,8 +46,8 @@ public class DataSeeder implements CommandLineRunner {
                     .email(adminEmail)
                     .password(passwordEncoder.encode("admin123"))
                     .activo(true)
-                    // Le damos los 3 sombreros: SuperAdmin, Admin y Nutricionista
-                    .roles(Set.of(superAdminRol, adminRol, nutriRol)) // <-- ACTUALIZADO
+                    // Le damos los 3 sombreros: SuperAdmin y Admin
+                    .roles(Set.of(superAdminRol, adminRol)) // <-- ACTUALIZADO
                     .build();
 
             usuarioRepository.save(adminUser);

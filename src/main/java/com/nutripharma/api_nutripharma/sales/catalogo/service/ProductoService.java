@@ -5,6 +5,7 @@ import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoResponse;
 import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
 import com.nutripharma.api_nutripharma.sales.catalogo.repository.ProductoRepository;
+import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final PedidoRepository pedidoRepository;
 
     @Transactional
     public ProductoResponse crearProducto(ProductoRequest request) {
@@ -62,21 +64,24 @@ public class ProductoService {
     @Transactional
     public void eliminarProducto(Long id) {
         Producto producto = productoRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.NOT_FOUND, "Producto no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
-        // 1. Obtenemos el email del administrador que está haciendo la petición
+        // REGLA DE NEGOCIO: No borrar si está en un carrito/pedido pendiente
+        long pedidosPendientes = pedidoRepository.countPedidosPendientesConProducto(id);
+        if (pedidosPendientes > 0) {
+            throw new IllegalArgumentException(
+                    "No se puede descatalogar: Hay " + pedidosPendientes + " pedidos PENDIENTES que contienen este producto. " +
+                            "Por favor, ve al Centro de Validaciones y gestiona/cancela esos pedidos primero."
+            );
+        }
+
+        // Si pasa la validación, procedemos al Soft Delete
         String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
-
-        // 2. Anotamos la auditoría
         producto.setBorradoPor(usuarioActual);
         producto.setFechaBaja(java.time.LocalDateTime.now());
-
-        // 3. Aplicamos el Soft Delete manualmente
         producto.setActivo(false);
 
-        // Guardamos los cambios
         productoRepository.save(producto);
     }
 
@@ -89,6 +94,18 @@ public class ProductoService {
     public void restaurarProducto(Long id) {
         // Ejecuta la consulta nativa que resucita el producto y limpia los datos de auditoría
         productoRepository.reactivarProducto(id);
+    }
+
+    @Transactional
+    public ProductoResponse toggleStock(Long id) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Producto no encontrado"));
+
+        // Invertimos el valor actual (si era true pasa a false, y viceversa)
+        p.setHayExistencias(!p.getHayExistencias());
+
+        return mapToResponse(productoRepository.save(p));
     }
 
     private ProductoResponse mapToResponse(Producto p) {

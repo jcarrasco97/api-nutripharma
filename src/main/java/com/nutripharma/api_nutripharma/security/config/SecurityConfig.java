@@ -33,12 +33,11 @@ public class SecurityConfig {
                     CorsConfiguration config = new CorsConfiguration();
                     // Permitimos explícitamente a nuestro React
                     config.setAllowedOrigins(List.of("http://localhost:5173"));
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
                     config.setAllowCredentials(true);
                     // Dentro de tu configuración de CORS
-                    config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    return config;
+                    config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));                    return config;
                 }))
                 .authorizeHttpRequests(auth -> auth
                         // ¡MAGIA ANTI-CORS! Dejamos pasar la petición fantasma OPTIONS

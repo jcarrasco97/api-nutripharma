@@ -45,6 +45,12 @@ public class ProductoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/stock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProductoResponse> toggleStock(@PathVariable Long id) {
+        return ResponseEntity.ok(productoService.toggleStock(id));
+    }
+
     @GetMapping("/bajas")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProductoRepository.ProductoInactivoProjection>> listarBajas() {
