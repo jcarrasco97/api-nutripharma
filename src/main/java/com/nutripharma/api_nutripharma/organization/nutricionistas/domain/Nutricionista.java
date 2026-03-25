@@ -11,8 +11,6 @@ import java.util.List;
 
 @Entity
 @Table(name = "nutricionistas")
-// --- MAGIA DEL BORRADO LÓGICO ---
-@SQLDelete(sql = "UPDATE nutricionistas SET activo = false WHERE id=?")
 @SQLRestriction("activo = true")
 @Getter
 @Setter
@@ -51,4 +49,10 @@ public class Nutricionista {
     @Builder.Default
     @Column(nullable = false)
     private Boolean activo = true;
+
+    @Column(name = "fecha_baja")
+    private java.time.LocalDateTime fechaBaja;
+
+    @Column(name = "borrado_por")
+    private String borradoPor;
 }

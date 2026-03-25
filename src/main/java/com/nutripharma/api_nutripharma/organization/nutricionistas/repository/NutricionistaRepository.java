@@ -23,6 +23,10 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
         String getDni();
 
         String getEmail();
+
+        java.time.LocalDateTime getFechaBaja();
+
+        String getBorradoPor();
     }
 
     // --- 2. MÉTODOS DEL REPOSITORIO ---
@@ -30,7 +34,7 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
 
     Optional<Nutricionista> findByUsuarioEmail(String email);
 
-    @Query(value = "SELECT n.id as id, n.nombre as nombre, n.apellidos as apellidos, n.dni as dni, u.email as email " +
+    @Query(value = "SELECT n.id as id, n.nombre as nombre, n.apellidos as apellidos, n.dni as dni, u.email as email, n.fecha_baja as fechaBaja, n.borrado_por as borradoPor " +
             "FROM nutricionistas n JOIN usuarios u ON n.usuario_id = u.id " +
             "WHERE n.activo = false", nativeQuery = true)
     List<NutriInactivoProjection> findHistorialBajas();
@@ -42,7 +46,7 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
 
     // 2. Resucita el "Cuerpo" (Nutricionista)
     @Modifying
-    @Query(value = "UPDATE nutricionistas SET activo = true WHERE id = ?1", nativeQuery = true)
+    @Query(value = "UPDATE nutricionistas SET activo = true, fecha_baja = NULL, borrado_por = NULL WHERE id = ?1", nativeQuery = true)
     void reactivarNutricionista(Long id);
 
     @Query(value = "SELECT * FROM nutricionistas WHERE dni = :dni", nativeQuery = true)

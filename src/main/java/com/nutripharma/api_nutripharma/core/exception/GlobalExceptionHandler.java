@@ -11,6 +11,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // --- NUEVO: Interceptor para Reglas de Negocio (Duplicados, Validaciones, etc.) ---
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        // React leerá dinámicamente este campo: error.response.data.message
+        body.put("message", ex.getMessage());
+
+        // Un error de validación siempre debe ser un 400 Bad Request
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    // --- EL QUE YA TENÍAS: Interceptor Genérico (Fallback) ---
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
         Map<String, Object> body = new LinkedHashMap<>();

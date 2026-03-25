@@ -8,8 +8,6 @@ import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "farmacias")
-// --- MAGIA DEL BORRADO LÓGICO ---
-@SQLDelete(sql = "UPDATE farmacias SET activo = false WHERE id=?")
 @SQLRestriction("activo = true")
 @Getter
 @Setter
@@ -50,4 +48,10 @@ public class Farmacia {
     @Builder.Default
     @Column(nullable = false)
     private Boolean activo = true;
+
+    @Column(name = "fecha_baja")
+    private java.time.LocalDateTime fechaBaja;
+
+    @Column(name = "borrado_por")
+    private String borradoPor;
 }

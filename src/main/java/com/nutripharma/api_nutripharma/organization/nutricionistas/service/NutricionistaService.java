@@ -152,14 +152,19 @@ public class NutricionistaService {
         Nutricionista nutri = nutricionistaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Nutricionista no encontrada"));
 
-        // Desactivamos su usuario
+        // 1. Auditoría
+        String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        nutri.setBorradoPor(usuarioActual);
+        nutri.setFechaBaja(java.time.LocalDateTime.now());
+
+        // 2. Desactivamos Alma y Cuerpo
         Usuario usuario = nutri.getUsuario();
         usuario.setActivo(false);
-        usuarioRepository.save(usuario);
+        nutri.setActivo(false);
 
-        // Al borrar la Nutricionista, sus asignaciones se borran por el
-        // cascade = CascadeType.ALL y orphanRemoval = true que tienes en la entidad.
-        nutricionistaRepository.delete(nutri);
+        usuarioRepository.save(usuario);
+        nutricionistaRepository.save(nutri); // <-- Usamos save en lugar de delete
     }
 
     private NutricionistaDTO.NutricionistaResponse mapToResponse(Nutricionista n) {

@@ -113,18 +113,23 @@ public class FarmaciaService {
         Farmacia farmacia = farmaciaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Farmacia no encontrada"));
 
-        // 1. Desactivamos el Usuario (Alma)
+        // 1. Auditoría
+        String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        farmacia.setBorradoPor(usuarioActual);
+        farmacia.setFechaBaja(java.time.LocalDateTime.now());
+
+        // 2. Desactivamos Alma
         Usuario usuario = farmacia.getUsuario();
         usuario.setActivo(false);
         usuarioRepository.save(usuario);
 
-        // 2. Limpiamos las asignaciones (Vínculos)
-        // Esto evita que las Nutricionistas intenten cargar una farmacia inactiva
+        // 3. Limpiamos vínculos (¡Muy importante mantener esto!)
         asignacionRepository.deleteByFarmaciaId(id);
 
-        // 3. Desactivamos la Farmacia (Cuerpo)
-        // El @SQLDelete se encargará de hacer el UPDATE activo = false automáticamente
-        farmaciaRepository.delete(farmacia);
+        // 4. Desactivamos Cuerpo
+        farmacia.setActivo(false);
+        farmaciaRepository.save(farmacia);
     }
 
     private FarmaciaResponse mapToResponse(Farmacia f) {

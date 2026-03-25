@@ -61,7 +61,23 @@ public class ProductoService {
 
     @Transactional
     public void eliminarProducto(Long id) {
-        productoRepository.deleteById(id);
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Producto no encontrado"));
+
+        // 1. Obtenemos el email del administrador que está haciendo la petición
+        String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+
+        // 2. Anotamos la auditoría
+        producto.setBorradoPor(usuarioActual);
+        producto.setFechaBaja(java.time.LocalDateTime.now());
+
+        // 3. Aplicamos el Soft Delete manualmente
+        producto.setActivo(false);
+
+        // Guardamos los cambios
+        productoRepository.save(producto);
     }
 
     @Transactional(readOnly = true)
@@ -71,6 +87,7 @@ public class ProductoService {
 
     @Transactional
     public void restaurarProducto(Long id) {
+        // Ejecuta la consulta nativa que resucita el producto y limpia los datos de auditoría
         productoRepository.reactivarProducto(id);
     }
 

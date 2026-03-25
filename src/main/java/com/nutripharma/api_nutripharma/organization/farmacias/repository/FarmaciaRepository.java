@@ -15,10 +15,18 @@ public interface FarmaciaRepository extends JpaRepository<Farmacia, Long> {
     // --- 1. ANIDAMOS LA INTERFAZ DE PROYECCIÓN AQUÍ DENTRO ---
     interface FarmaciaInactivaProjection {
         Long getId();
+
         String getNombre();
+
         String getCif();
+
         String getDireccion();
+
         String getEmail();
+
+        java.time.LocalDateTime getFechaBaja();
+
+        String getBorradoPor();
     }
 
     // --- 2. MÉTODOS DEL REPOSITORIO ---
@@ -26,7 +34,7 @@ public interface FarmaciaRepository extends JpaRepository<Farmacia, Long> {
 
     Optional<Farmacia> findByUsuarioEmail(String email);
 
-    @Query(value = "SELECT f.id as id, f.nombre as nombre, f.cif as cif, f.direccion as direccion, u.email as email " +
+    @Query(value = "SELECT f.id as id, f.nombre as nombre, f.cif as cif, f.direccion as direccion, u.email as email, f.fecha_baja as fechaBaja, f.borrado_por as borradoPor " +
             "FROM farmacias f JOIN usuarios u ON f.usuario_id = u.id " +
             "WHERE f.activo = false", nativeQuery = true)
     List<FarmaciaInactivaProjection> findHistorialBajas();
@@ -38,7 +46,7 @@ public interface FarmaciaRepository extends JpaRepository<Farmacia, Long> {
 
     // 2. Resucita el "Cuerpo" (Farmacia)
     @Modifying
-    @Query(value = "UPDATE farmacias SET activo = true WHERE id = ?1", nativeQuery = true)
+    @Query(value = "UPDATE farmacias SET activo = true, fecha_baja = NULL, borrado_por = NULL WHERE id = ?1", nativeQuery = true)
     void reactivarFarmacia(Long id);
 
     @Query(value = "SELECT * FROM farmacias WHERE cif = :cif", nativeQuery = true)

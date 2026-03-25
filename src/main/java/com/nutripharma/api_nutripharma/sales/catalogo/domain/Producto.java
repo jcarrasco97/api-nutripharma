@@ -9,8 +9,6 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "productos")
-// Arriba, debajo de @Table(name = "productos")
-@SQLDelete(sql = "UPDATE productos SET activo = false WHERE id=?")
 @SQLRestriction("activo = true")
 @Getter
 @Setter
@@ -57,4 +55,11 @@ public class Producto {
     @Builder.Default
     @Column(nullable = false)
     private Boolean activo = true;
+
+    // --- CAMPOS DE AUDITORÍA (TRAZABILIDAD) ---
+    @Column(name = "fecha_baja")
+    private java.time.LocalDateTime fechaBaja;
+
+    @Column(name = "borrado_por")
+    private String borradoPor;
 }

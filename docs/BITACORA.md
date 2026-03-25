@@ -786,7 +786,7 @@ módulo entero hacia otra aplicación.
 * **Trazabilidad Profunda:** Añadir metadatos de auditoría (`borrado_por`, `fecha_baja`) para mostrar quién y cuándo ejecutó las acciones de baja.
 * **Módulo de Resurrección Avanzada:** Habilitar la edición de campos críticos durante el proceso de restauración para actualizar contratos o condiciones comerciales.
 
-## [25/03/2026]Fase: Single Source of Truth y Reglas de Negocio (Trazabilidad Fase 3)
+## [25/03/2026] Fase: Single Source of Truth y Reglas de Negocio (Trazabilidad Fase 3)
 
 ### 🛠️ Backend (Spring Boot)
 * **radares Anti-Zombis (Native Queries):** Creación de métodos `findBy...IgnorandoBajas` en los repositorios (`Usuario`, `Nutricionista`, `Farmacia`, `Producto`) utilizando consultas nativas puras para saltar la restricción global de Hibernate (`@SQLRestriction`).
@@ -802,4 +802,23 @@ módulo entero hacia otra aplicación.
 <strong>2. Lógica de Negocio vs Restricciones de BD:</strong> Las restricciones de Base de Datos (<code>UNIQUE</code>) son la última línea de defensa, el muro final. Sin embargo, depender de ellas para la validación devuelve errores genéricos (500/404). Un buen diseño Enterprise intercepta el problema en la Capa de Servicio, traduciéndolo en una excepción de negocio (<code>IllegalArgumentException</code>) que el Frontend pueda mostrar como un mensaje útil al usuario ("Este registro está descatalogado, restáurelo").<br><br>
 
 <strong>3. Inmutabilidad de la Identidad:</strong> No se modifica la estructura de la base de datos para permitir DNI duplicados. Una entidad del mundo real (una persona o un producto físico) equivale a una única fila inmutable. Si la entidad regresa, se restaura su fila original, manteniendo intacto su historial (Single Source of Truth).
+</div>
+
+## Fase: Auditoría de Datos y Control de Trazabilidad (Fase 4)
+
+### 🛠️ Backend (Spring Boot)
+* **Metadatos de Auditoría:** Inyección de los campos `fecha_baja` y `borrado_por` en las entidades del negocio (`Producto`, `Nutricionista`, `Farmacia`).
+* **Interceptación del Usuario:** Uso de `SecurityContextHolder` en la capa de Servicio para extraer el email del usuario autenticado en tiempo real mediante el token JWT.
+* **Transición de Soft Delete:** Eliminación de la anotación estática `@SQLDelete` en favor de un guardado manual (`repository.save()`) con el estado modificado. Esto permite inyectar dinámicamente los datos de auditoría antes de la persistencia.
+* **Limpieza de Expediente:** Modificación de las consultas nativas de resurrección (`reactivar...`) para incluir `fecha_baja = NULL` y `borrado_por = NULL`, reseteando el historial del registro al volver a la vida operativa.
+
+### 🖥️ Frontend (React)
+* **Badges de Auditoría:** Implementación de etiquetas visuales en el Archivo Histórico para mostrar al instante quién ejecutó la acción de borrado y en qué fecha (`new Date().toLocaleDateString()`).
+
+<div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
+<strong>💡 LECCIONES DE ARQUITECTURA SENIOR: AUDITORÍA ESTÁTICA VS DINÁMICA 💡</strong><br><br>
+
+<strong>1. Los límites de @SQLDelete:</strong> Las anotaciones de Hibernate son cómodas, pero estáticas. Si necesitas registrar <em>quién</em> y <em>cuándo</em> se borró algo, <code>@SQLDelete</code> se queda corto porque no puede recibir variables dinámicas del contexto de seguridad. Es necesario pasar a un control manual en la capa de Servicio.<br><br>
+
+<strong>2. Seguridad sin fricción:</strong> Gracias a la arquitectura Stateless con JWT, no necesitamos pasar el ID del usuario desde React en cada petición de borrado (lo cual sería vulnerable a manipulaciones). El Backend lee la identidad firmada e inmutable directamente del token a través del <code>SecurityContextHolder</code>.
 </div>
