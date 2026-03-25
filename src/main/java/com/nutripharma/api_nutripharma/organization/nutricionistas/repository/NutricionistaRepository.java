@@ -44,4 +44,7 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
     @Modifying
     @Query(value = "UPDATE nutricionistas SET activo = true WHERE id = ?1", nativeQuery = true)
     void reactivarNutricionista(Long id);
+
+    @Query(value = "SELECT * FROM nutricionistas WHERE dni = :dni", nativeQuery = true)
+    java.util.Optional<com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista> findByDniIgnorandoBajas(@org.springframework.data.repository.query.Param("dni") String dni);
 }

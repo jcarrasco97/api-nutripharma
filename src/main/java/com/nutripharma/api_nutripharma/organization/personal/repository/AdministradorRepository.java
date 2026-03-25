@@ -27,4 +27,13 @@ public interface AdministradorRepository extends JpaRepository<Administrador, Lo
             "FROM administradores a JOIN usuarios u ON a.usuario_id = u.id " +
             "WHERE a.activo = false", nativeQuery = true)
     List<AdminInactivoProjection> findHistorialBajas();
+
+    // --- RESURRECCIÓN ATÓMICA ---
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE usuarios SET activo = true WHERE id = (SELECT usuario_id FROM administradores WHERE id = ?1)", nativeQuery = true)
+    void reactivarUsuario(Long id);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE administradores SET activo = true WHERE id = ?1", nativeQuery = true)
+    void reactivarAdministrador(Long id);
 }

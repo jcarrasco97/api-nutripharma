@@ -50,4 +50,11 @@ public class ProductoController {
     public ResponseEntity<List<ProductoRepository.ProductoInactivoProjection>> listarBajas() {
         return ResponseEntity.ok(productoService.obtenerBajas());
     }
+
+    @PutMapping("/{id}/restaurar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> restaurarProducto(@PathVariable Long id) {
+        productoService.restaurarProducto(id);
+        return ResponseEntity.ok().build();
+    }
 }

@@ -39,4 +39,8 @@ public interface FarmaciaRepository extends JpaRepository<Farmacia, Long> {
     // 2. Resucita el "Cuerpo" (Farmacia)
     @Modifying
     @Query(value = "UPDATE farmacias SET activo = true WHERE id = ?1", nativeQuery = true)
-    void reactivarFarmacia(Long id);;}
+    void reactivarFarmacia(Long id);
+
+    @Query(value = "SELECT * FROM farmacias WHERE cif = :cif", nativeQuery = true)
+    java.util.Optional<com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia> findByCifIgnorandoBajas(@org.springframework.data.repository.query.Param("cif") String cif);
+}

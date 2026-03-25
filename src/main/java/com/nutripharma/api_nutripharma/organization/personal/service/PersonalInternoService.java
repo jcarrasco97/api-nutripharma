@@ -72,7 +72,6 @@ public class PersonalInternoService {
         boolean esSuperAdmin = admin.getUsuario().getRoles().stream()
                 .anyMatch(rol -> rol.getNombre().equals("ROLE_SUPERADMIN"));
 
-        // El escudo ahora SOLO protege a quien tenga el rol SUPERADMIN
         if (esSuperAdmin) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.BAD_REQUEST,
@@ -80,9 +79,20 @@ public class PersonalInternoService {
             );
         }
 
-        Long usuarioId = admin.getUsuario().getId();
+        // --- APLICAMOS SOFT DELETE AL ALMA ---
+        Usuario usuario = admin.getUsuario();
+        usuario.setActivo(false);
+        usuarioRepository.save(usuario);
+
+        // --- APLICAMOS SOFT DELETE AL CUERPO ---
+        // (El @SQLDelete de la entidad interceptará esto y hará el UPDATE)
         administradorRepository.delete(admin);
-        usuarioRepository.deleteById(usuarioId);
+    }
+
+    @Transactional
+    public void restaurarAdmin(Long id) {
+        administradorRepository.reactivarUsuario(id);
+        administradorRepository.reactivarAdministrador(id);
     }
 
     @Transactional(readOnly = true)

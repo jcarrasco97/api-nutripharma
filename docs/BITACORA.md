@@ -785,3 +785,21 @@ módulo entero hacia otra aplicación.
 * **Gestión de Restricciones Únicas:** Implementar lógica para manejar conflictos de DNI, CIF o Email cuando un nuevo registro intenta usar datos de un registro que está en el "cementerio".
 * **Trazabilidad Profunda:** Añadir metadatos de auditoría (`borrado_por`, `fecha_baja`) para mostrar quién y cuándo ejecutó las acciones de baja.
 * **Módulo de Resurrección Avanzada:** Habilitar la edición de campos críticos durante el proceso de restauración para actualizar contratos o condiciones comerciales.
+
+## [25/03/2026]Fase: Single Source of Truth y Reglas de Negocio (Trazabilidad Fase 3)
+
+### 🛠️ Backend (Spring Boot)
+* **radares Anti-Zombis (Native Queries):** Creación de métodos `findBy...IgnorandoBajas` en los repositorios (`Usuario`, `Nutricionista`, `Farmacia`, `Producto`) utilizando consultas nativas puras para saltar la restricción global de Hibernate (`@SQLRestriction`).
+* **Blindaje de Identidades Únicas:** Refactorización de las capas de Servicio para interceptar la creación de registros duplicados (Email, DNI, CIF, Referencia).
+* **Prevención de Excepciones Fatales:** Al interceptar la duplicidad en la capa de negocio, evitamos que la base de datos lance un `DataIntegrityViolationException`, lo cual causaba errores 500/404 no controlados en el Frontend.
+* **Nomenclatura Corporativa:** Transición del concepto visual de "Cementerio" a "Archivo Histórico" / "Productos Descatalogados" para mantener coherencia semántica.
+
+<div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
+<strong>💡 LECCIONES DE ARQUITECTURA SENIOR: SINGLE SOURCE OF TRUTH 💡</strong><br><br>
+
+<strong>1. La trampa del Soft Delete:</strong> Ocultar registros inactivos con <code>@SQLRestriction</code> es útil para listados, pero es peligroso para las validaciones. Si el sistema ignora a los inactivos al validar IDs únicos (como un DNI), la base de datos colapsará al intentar insertar un duplicado físico.<br><br>
+
+<strong>2. Lógica de Negocio vs Restricciones de BD:</strong> Las restricciones de Base de Datos (<code>UNIQUE</code>) son la última línea de defensa, el muro final. Sin embargo, depender de ellas para la validación devuelve errores genéricos (500/404). Un buen diseño Enterprise intercepta el problema en la Capa de Servicio, traduciéndolo en una excepción de negocio (<code>IllegalArgumentException</code>) que el Frontend pueda mostrar como un mensaje útil al usuario ("Este registro está descatalogado, restáurelo").<br><br>
+
+<strong>3. Inmutabilidad de la Identidad:</strong> No se modifica la estructura de la base de datos para permitir DNI duplicados. Una entidad del mundo real (una persona o un producto físico) equivale a una única fila inmutable. Si la entidad regresa, se restaura su fila original, manteniendo intacto su historial (Single Source of Truth).
+</div>

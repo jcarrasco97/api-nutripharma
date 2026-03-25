@@ -31,11 +31,24 @@ public class FarmaciaService {
 
     @Transactional
     public FarmaciaResponse crearFarmacia(FarmaciaRequest request) {
-        if (usuarioRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("El email ya está registrado.");
+        // 1. Validar Email (Alma)
+        var usuarioExistente = usuarioRepository.findByEmailIgnorandoBajas(request.email());
+        if (usuarioExistente.isPresent()) {
+            if (usuarioExistente.get().getActivo()) {
+                throw new IllegalArgumentException("El email ya está registrado y activo en el sistema.");
+            } else {
+                throw new IllegalArgumentException("Este email pertenece a una cuenta dada de baja. Ve al Historial de Bajas para restaurarla.");
+            }
         }
-        if (farmaciaRepository.existsByCif(request.cif())) {
-            throw new IllegalArgumentException("Ya existe una farmacia con ese CIF.");
+
+        // 2. Validar CIF (Cuerpo)
+        var farmaciaExistente = farmaciaRepository.findByCifIgnorandoBajas(request.cif());
+        if (farmaciaExistente.isPresent()) {
+            if (farmaciaExistente.get().getActivo()) {
+                throw new IllegalArgumentException("Ya existe una farmacia activa con este CIF.");
+            } else {
+                throw new IllegalArgumentException("Este CIF pertenece a una farmacia dada de baja. Ve al Historial de Bajas para restaurarla.");
+            }
         }
 
         Rol rolFarmacia = rolRepository.findByNombre("ROLE_FARMACIA")
@@ -55,7 +68,7 @@ public class FarmaciaService {
                 .cif(request.cif())
                 .direccion(request.direccion())
                 .esProvinciaLocal(request.esProvinciaLocal() != null ? request.esProvinciaLocal() : true)
-                .porcentajeComision(request.porcentajeComision() != null ? request.porcentajeComision() : 30.0) // <-- NUEVO
+                .porcentajeComision(request.porcentajeComision() != null ? request.porcentajeComision() : 30.0)
                 .build();
         Farmacia guardada = farmaciaRepository.save(nuevaFarmacia);
 

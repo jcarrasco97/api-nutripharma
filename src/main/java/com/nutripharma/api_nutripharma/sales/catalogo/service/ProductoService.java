@@ -20,8 +20,14 @@ public class ProductoService {
 
     @Transactional
     public ProductoResponse crearProducto(ProductoRequest request) {
-        if (productoRepository.existsByReferencia(request.referencia())) {
-            throw new IllegalArgumentException("Ya existe un producto con esta referencia.");
+
+        var prodExistente = productoRepository.findByReferenciaIgnorandoBajas(request.referencia());
+        if (prodExistente.isPresent()) {
+            if (prodExistente.get().getActivo()) {
+                throw new IllegalArgumentException("Ya existe un producto activo con esta referencia en el catálogo.");
+            } else {
+                throw new IllegalArgumentException("Esta referencia pertenece a un producto descatalogado. Ve al Archivo Histórico para restaurarlo.");
+            }
         }
 
         Producto nuevoProducto = Producto.builder()
@@ -31,7 +37,6 @@ public class ProductoService {
                 .referencia(request.referencia())
                 .pvf(request.pvf())
                 .pvp(request.pvp())
-                // El IVA (10%) y hayExistencias (true) se ponen solos gracias al @Builder.Default de la Entidad
                 .build();
 
         return mapToResponse(productoRepository.save(nuevoProducto));
@@ -62,6 +67,11 @@ public class ProductoService {
     @Transactional(readOnly = true)
     public List<com.nutripharma.api_nutripharma.sales.catalogo.repository.ProductoRepository.ProductoInactivoProjection> obtenerBajas() {
         return productoRepository.findHistorialBajas();
+    }
+
+    @Transactional
+    public void restaurarProducto(Long id) {
+        productoRepository.reactivarProducto(id);
     }
 
     private ProductoResponse mapToResponse(Producto p) {

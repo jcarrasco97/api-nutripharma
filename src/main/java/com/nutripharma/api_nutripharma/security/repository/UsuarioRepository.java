@@ -26,4 +26,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     List<UsuarioDestinatarioProjection> findUsuariosParaDesplegable();
 
     Optional<Usuario> findByResetPasswordToken(String token);
+
+    @Query(value = "SELECT * FROM usuarios WHERE email = :email", nativeQuery = true)
+    java.util.Optional<com.nutripharma.api_nutripharma.security.domain.Usuario> findByEmailIgnorandoBajas(@org.springframework.data.repository.query.Param("email") String email);
 }

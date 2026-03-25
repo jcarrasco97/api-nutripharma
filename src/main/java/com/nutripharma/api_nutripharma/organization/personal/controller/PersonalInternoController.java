@@ -17,8 +17,11 @@ public class PersonalInternoController {
     private final PersonalInternoService personalInternoService;
 
     // DTOs
-    public record AdminRequest(String email, String password, String nombre, String apellidos) {}
-    public record AdminResponse(Long id, String email, String nombre, String apellidos) {}
+    public record AdminRequest(String email, String password, String nombre, String apellidos) {
+    }
+
+    public record AdminResponse(Long id, String email, String nombre, String apellidos) {
+    }
 
     @PostMapping("/admin")
     @PreAuthorize("hasRole('SUPERADMIN')")
@@ -44,5 +47,12 @@ public class PersonalInternoController {
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<List<com.nutripharma.api_nutripharma.organization.personal.repository.AdministradorRepository.AdminInactivoProjection>> listarBajas() {
         return ResponseEntity.ok(personalInternoService.obtenerBajas());
+    }
+
+    @PutMapping("/admin/{id}/restaurar")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ResponseEntity<Void> restaurarAdmin(@PathVariable Long id) {
+        personalInternoService.restaurarAdmin(id);
+        return ResponseEntity.ok().build();
     }
 }
