@@ -63,6 +63,26 @@ Para preservar la integridad de las auditorías y la trazabilidad (facturas, con
 * **Máquina de Estados:** `SOLICITADO` ➔ `APROBADO` (Admin) ➔ `CANCELADO`.
 * **Regla Anti-Spam:** Si un ítem está "Solicitado", desaparece del catálogo del usuario hasta que el Admin resuelva la petición, evitando duplicidades.
 
+
+### 2.4. Motor de Incidencias y Corrección de Errores (Ticketing B2B)
+
+Para gestionar los errores humanos en la introducción de datos (ej. equivocación en el recuento de pacientes), se implementa un sistema de resolución asíncrono entre Nutricionistas y Central.
+
+* **Single Source of Truth (Ticket Único):** Para evitar la dispersión de información, una consulta solo puede tener un estado de incidencia activo (`CON_INCIDENCIA`).
+* **Propiedad del Creador:** La Nutricionista puede abrir una incidencia sobre su consulta en cualquier momento, lo que bloquea su liquidación financiera. Si detecta nuevos errores antes de que la central los resuelva, el sistema le permite **editar** su propio mensaje de incidencia, en lugar de crear uno nuevo.
+* **Flujo de Resolución (Admin):** El Administrador, desde el *Gatekeeper* (Centro de Validaciones), visualiza las alertas. Es el único con privilegios para entrar al modo edición, corregir los datos numéricos basándose en el texto de la nutricionista, y marcar el ticket como resuelto (`VALIDADA`).
+* **UX/UI No Invasiva:** Los textos largos (Observaciones de jornada o mensajes de incidencia) se resuelven visualmente mediante expansiones verticales (*Accordions*) dentro de la propia tarjeta, evitando la sobrecarga de ventanas modales.
+
+### 2.5. Integridad de Agendas (Control Anti-Solapamiento)
+
+Para garantizar la coherencia operativa y evitar fraudes o errores humanos en la imputación de jornadas, el sistema aplica una validación estricta de tiempo basada en la intersección de intervalos (Time Overlap).
+
+* **Single Source of Truth Temporal:** Aunque el sistema categorice cualitativamente los turnos (Mañana, Tarde, Día Completo), la validación de colisiones se calcula exclusivamente usando los valores `horaInicio` y `horaFin` (precisión de minutos).
+* **Reglas de Validación Backend:**
+  1.  **Coherencia Lineal:** La `horaFin` debe ser estrictamente posterior a la `horaInicio`.
+  2.  **Exclusividad Espacio-Temporal:** Un nutricionista no puede tener dos registros en la misma `fecha` si sus intervalos de horas se cruzan. La regla matemática aplicada es: `(NuevoInicio < ExistenteFin) AND (NuevoFin > ExistenteInicio)`.
+  3.  **Excepción de Cancelados:** Los turnos con estado `CANCELADA` se excluyen de esta validación para liberar el espacio horario en caso de error.
+* **Gestión de Errores:** Esta validación ocurre en la capa de servicio del backend antes de cualquier persistencia, devolviendo una excepción de conflicto manejada por el frontend mediante alertas amigables.
 ---
 
 ## 3. MÓDULO COMERCIAL Y PEDIDOS B2B
@@ -132,3 +152,27 @@ El sistema debe llevar un registro automático del desgaste por desplazamiento p
 * **Atributo Relacional:** La distancia (en kilómetros) se define de forma única para cada par `[Nutricionista ↔ Farmacia]`. El Administrador debe especificar este valor numérico en el momento de asignar una farmacia al perfil de la nutricionista.
 * **Cálculo de Acumulación Mensual:** Cada vez que una nutricionista registra un turno (consulta) con estado `CONFIRMADA` en una farmacia, el sistema computa un "Viaje" (Ida y Vuelta).
 * **Visibilidad:** El "Resumen Operativo" de la Nutricionista debe mostrar el Total de Kilómetros Acumulados en el mes en curso, calculado como: `Σ (Consultas Confirmadas en Farmacia X * Distancia a Farmacia X)`. La aplicación no calcula euros por gasolina, solo acumula la métrica de distancia bruta.
+
+---
+
+## 5. DISEÑO UI/UX Y BRANDING CORPORATIVO
+
+El sistema abandona los colores genéricos de las librerías CSS para adoptar una identidad visual 100% alineada con la marca NutriPharma. La implementación se realiza inyectando los valores hexadecimales exactos en la capa de presentación (vía Tailwind CSS).
+
+### 5.1. Paleta de Colores Base (Por orden de jerarquía)
+
+* **Color Principal (Acción/Primario):** `#367933` (Verde oscuro)
+  * *Uso:* Botones de acción principal, elementos activos del menú lateral, barras de progreso y textos clave de éxito. Transmite salud y crecimiento.
+* **Color Secundario (Institucional/Contraste):** `#062e3a` (Azul oscuro)
+  * *Uso:* Encabezados (Header/Sidebar), títulos principales (H1/H2), tipografía de alto contraste y fondos de tarjetas de control. Aporta seriedad, profesionalidad y peso visual.
+* **Color Terciario (Acento/Resalte):** `#b1cb0c` (Verde claro/Lima)
+  * *Uso:* Combinado frecuentemente con opacidad (ej. fondos al 20%) para destacar selecciones, iluminar iconos clave, notificaciones y elementos que requieren atención rápida sin ser agresivos.
+* **Color Cuaternario (Apoyo/Neutro):** `#342c1e` (Gris oscuro/Pardo)
+  * *Uso:* Tipografía secundaria, subtítulos, etiquetas (labels) de formularios y bordes estructurales.
+
+### 5.2. Gradientes Corporativos
+
+Se utilizan exclusivamente en zonas de alto impacto (Hero Cards) para romper la monotonía visual y resaltar métricas financieras o de rendimiento, logrando armonía con la estructura de la aplicación:
+
+* **Gradiente Claro:** De `#bed000` a `#85ac1c`
+* **Gradiente Oscuro:** De `#006633` a `#68b54e`

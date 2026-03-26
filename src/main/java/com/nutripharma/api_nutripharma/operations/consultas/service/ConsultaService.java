@@ -26,6 +26,25 @@ public class ConsultaService {
 
     @Transactional
     public ConsultaResponse registrarTurno(ConsultaRequest request) {
+
+        // 1. Validaciones de Coherencia Temporal Básica (El inicio no puede ser después del fin)
+        if (request.horaFin().isBefore(request.horaInicio()) || request.horaFin().equals(request.horaInicio())) {
+            throw new IllegalArgumentException("La hora de fin debe ser posterior a la hora de inicio.");
+        }
+
+        // 2. Validación Anti-Solapamiento (El Escudo)
+        boolean solapado = consultaRepository.existsOverlap(
+                request.nutricionistaId(),
+                request.fecha(),
+                request.horaInicio(),
+                request.horaFin()
+        );
+
+        if (solapado) {
+            throw new IllegalStateException("Conflicto de agenda: Ya tienes un turno registrado que se solapa con este horario.");
+        }
+
+        // 3. Si pasa el escudo, procedemos con la creación normal
         Nutricionista nutricionista = nutricionistaRepository.findById(request.nutricionistaId())
                 .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
 
@@ -63,6 +82,10 @@ public class ConsultaService {
         return mapToResponse(consultaRepository.save(consulta));
     }
 
+    // =========================================================================================
+    // ⚙️ MOTOR CONTABLE Y VALIDACIONES (ADMIN)
+    // =========================================================================================
+
     @Transactional
     public ConsultaResponse validarTurno(Long id) {
         Consulta consulta = consultaRepository.findById(id)
@@ -71,42 +94,113 @@ public class ConsultaService {
         if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
             throw new IllegalStateException("Esta consulta ya ha sido validada y liquidada anteriormente.");
         }
-
-        // --- NUEVA LÓGICA DE CÁLCULO DE SALDO VIRTUAL VARIABLE ---
-        double ingresosNuevas = consulta.getNuevas() * 25.0;
-        double ingresosRevisiones = consulta.getRevisiones() * 20.0;
-        double totalGenerado = ingresosNuevas + ingresosRevisiones;
-
-        if (totalGenerado > 0) {
-            Farmacia farmacia = consulta.getFarmacia();
-
-            // Leemos el porcentaje específico de la farmacia y lo convertimos a decimal (Ej: 30 -> 0.30)
-            double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
-
-            double comisionFarmacia = totalGenerado * porcentajeDecimal;
-
-            double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
-            farmacia.setSaldoVirtual(saldoActual + comisionFarmacia);
-            farmaciaRepository.save(farmacia);
+        if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
+            throw new IllegalStateException("No se puede validar una consulta cancelada.");
         }
+
+        // Limpiamos el mensaje de incidencia si lo hubiera, ya que se da por resuelta
+        consulta.setMensajeIncidencia(null);
+
+        aplicarSaldoFarmacia(consulta);
 
         consulta.setEstado(EstadoConsulta.VALIDADA);
         return mapToResponse(consultaRepository.save(consulta));
     }
 
     @Transactional
-    public ConsultaResponse reportarIncidencia(Long id, String mensaje) {
+    public ConsultaResponse editarYValidarTurnoAdmin(Long id, Integer nuevas, Integer revisiones, Integer promociones, Integer personalFarmacia) {
         Consulta consulta = consultaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
 
-        if (consulta.getEstado() != EstadoConsulta.VALIDADA) {
-            throw new IllegalStateException("Solo se pueden abrir incidencias sobre turnos confirmados.");
+        if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
+            throw new IllegalStateException("No se puede editar una consulta cancelada.");
         }
 
+        // 1. REVERSIÓN: Si ya estaba validada, restamos el saldo antiguo antes de poner los datos nuevos
+        if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
+            revertirSaldoFarmacia(consulta);
+        }
+
+        // 2. EDICIÓN: Actualizamos los valores numéricos
+        consulta.setNuevas(nuevas != null ? nuevas : 0);
+        consulta.setRevisiones(revisiones != null ? revisiones : 0);
+        consulta.setPromociones(promociones != null ? promociones : 0);
+        // Si no te envían el personal de farmacia por DTO, mantenemos el que había o ponemos 0
+        consulta.setPersonalFarmacia(personalFarmacia != null ? personalFarmacia : consulta.getPersonalFarmacia());
+
+        // 3. APLICACIÓN: Limpiamos incidencia y sumamos el nuevo saldo calculado
+        consulta.setMensajeIncidencia(null);
+        aplicarSaldoFarmacia(consulta);
+
+        consulta.setEstado(EstadoConsulta.VALIDADA);
+        return mapToResponse(consultaRepository.save(consulta));
+    }
+
+    @Transactional
+    public ConsultaResponse cancelarTurnoAdmin(Long id) {
+        Consulta consulta = consultaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+
+        if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
+            throw new IllegalStateException("La consulta ya está cancelada.");
+        }
+
+        // Si la consulta ya había generado dinero, tenemos que restárselo a la farmacia
+        if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
+            revertirSaldoFarmacia(consulta);
+        }
+
+        consulta.setEstado(EstadoConsulta.CANCELADA);
+        return mapToResponse(consultaRepository.save(consulta));
+    }
+
+    // =========================================================================================
+    // 🛡️ MÉTODOS PRIVADOS CONTABLES
+    // =========================================================================================
+
+    private void aplicarSaldoFarmacia(Consulta consulta) {
+        double totalGenerado = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
+        if (totalGenerado > 0) {
+            Farmacia farmacia = consulta.getFarmacia();
+            double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+            double comisionFarmacia = totalGenerado * porcentajeDecimal;
+            double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
+            farmacia.setSaldoVirtual(saldoActual + comisionFarmacia);
+            farmaciaRepository.save(farmacia);
+        }
+    }
+
+    private void revertirSaldoFarmacia(Consulta consulta) {
+        double totalGeneradoAnterior = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
+        if (totalGeneradoAnterior > 0) {
+            Farmacia farmacia = consulta.getFarmacia();
+            double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+            double comisionRevertir = totalGeneradoAnterior * porcentajeDecimal;
+            double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
+            farmacia.setSaldoVirtual(saldoActual - comisionRevertir);
+            farmaciaRepository.save(farmacia);
+        }
+    }
+
+    // =========================================================================================
+    // 📩 TICKETING (INCIDENCIAS)
+    // =========================================================================================
+
+    @Transactional
+    public ConsultaResponse reportarIncidencia(Long id, String mensaje) {
+        Consulta consulta = consultaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+        if (consulta.getEstado() == EstadoConsulta.BORRADOR || consulta.getEstado() == EstadoConsulta.CANCELADA) {
+            throw new IllegalStateException("No se pueden abrir incidencias en este estado.");
+        }
         consulta.setEstado(EstadoConsulta.CON_INCIDENCIA);
         consulta.setMensajeIncidencia(mensaje);
         return mapToResponse(consultaRepository.save(consulta));
     }
+
+    // =========================================================================================
+    // 🔍 QUERIES
+    // =========================================================================================
 
     @Transactional(readOnly = true)
     public List<ConsultaResponse> obtenerTodas() {
@@ -115,18 +209,12 @@ public class ConsultaService {
 
     @Transactional(readOnly = true)
     public List<ConsultaResponse> obtenerMisConsultas(String email) {
-        return consultaRepository.findByNutricionistaUsuarioEmail(email)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return consultaRepository.findByNutricionistaUsuarioEmail(email).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<ConsultaResponse> obtenerHistorialFarmacia(String email) {
-        return consultaRepository.findByFarmaciaUsuarioEmailOrderByFechaDesc(email)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return consultaRepository.findByFarmaciaUsuarioEmailOrderByFechaDesc(email).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     private ConsultaResponse mapToResponse(Consulta c) {

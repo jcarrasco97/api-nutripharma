@@ -30,7 +30,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
     }
 
-    // 3. ERRORES INTERNOS GRAVES -> 500 Internal Server Error
+    // 3. CONFLICTOS DE ESTADO (Solapamiento de turnos, acciones inválidas) -> 409 Conflict
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Object> handleIllegalStateException(IllegalStateException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+    }
+
+    // 4. ERRORES INTERNOS GRAVES -> 500 Internal Server Error
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
         // ¡VITAL! Imprimimos el error real en la consola del Backend para no estar ciegos

@@ -61,4 +61,28 @@ public class ConsultaController {
     public ResponseEntity<ConsultaResponse> validarTurnoAdmin(@PathVariable Long id) {
         return ResponseEntity.ok(consultaService.validarTurno(id));
     }
+
+    // 👇 NUEVAS RUTAS DE GESTIÓN AVANZADA (MODO EDICIÓN E INCIDENCIAS) 👇
+
+    @PutMapping("/{id}/editar-validar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConsultaResponse> editarYValidarTurnoAdmin(
+            @PathVariable Long id,
+            @RequestBody com.nutripharma.api_nutripharma.operations.consultas.controller.dto.ConsultaDTO.ConsultaRequest request) {
+
+        // Usamos el request que ya tenías para aprovechar sus campos
+        return ResponseEntity.ok(consultaService.editarYValidarTurnoAdmin(
+                id,
+                request.nuevas(),
+                request.revisiones(),
+                request.promociones(),
+                request.personalFarmacia()
+        ));
+    }
+
+    @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConsultaResponse> cancelarTurnoAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(consultaService.cancelarTurnoAdmin(id));
+    }
 }
