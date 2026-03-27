@@ -838,3 +838,145 @@ módulo entero hacia otra aplicación.
 * **UI de Pedidos Proxy:** Adaptación de `VistaPedidos` para que los administradores puedan actuar como teleoperadores, seleccionando cualquier farmacia destino y generando pedidos en su nombre.
 * **Motor de Precios Dinámico en Front:** El catálogo ajusta automáticamente la visualización de PVF o PVP dependiendo de la propiedad `esProvinciaLocal` de la farmacia destino seleccionada.
 * **Limpieza del Virtual DOM:** Corrección del renderizado del menú lateral en `Dashboard.jsx` para evitar colisiones de `keys` en usuarios con roles múltiples.
+
+
+### [26/03/2026]
+
+#### 🖥️ Frontend (React)
+
+* **Adopción de Feature-Sliced Design (FSD):** Refactorización masiva de las vistas monolíticas hacia una Arquitectura basada en Funcionalidades. Separación estricta de responsabilidades dividiendo el código en hooks (Cerebro/Lógica de negocio), components (Órganos visuales) y views (Orquestadores).
+* **Dominio de Administración:** Renombrado estratégico del módulo `entidades` a `administracion` para reflejar con precisión el contexto de negocio. Desacoplamiento total del Centro de Mando (`VistaPersonalInterno`).
+* **Módulo de Pedidos y Finanzas:** Extracción de la compleja lógica de carrito, monedero virtual, bonificaciones y "Modo Proxy" hacia el hook `usePedidos.js`. Fragmentación de la UI en componentes aislados (`TarjetaMonedero`, `CatalogoProductos`, `CestaPedidos`).
+* **Dashboards y Analytics:** Refactorización profunda de los tres paneles principales (`VistaResumen`, `VistaResumenAdmin`, `VistaResumenFarmacia`). Resolución de advertencias de renderizado en gráficos de Recharts (`ResponsiveContainer`) asegurando contenedores con altura fija.
+* **Protección de Renderizado Asíncrono:** Implementación de encadenamiento opcional (`?.map`) y fallback de arrays vacíos (`|| []`) en historiales y listas para evitar caídas de la aplicación (crashes) durante la resolución de promesas en perfiles complejos como el Nutricionista.
+* **Módulos de Soporte (Auth, Docs, Suministros):** Limpieza de las vistas de inicio de sesión (`Login`, `ResetPassword`), subida de archivos (`VistaDocumentacion`) y peticiones de material (`VistaSuministros`), delegando el control de formularios y tokens a hooks dedicados.
+* **Desacoplamiento del Layout Principal:** Limpieza extrema de `Dashboard.jsx`, externalizando la lógica de roles, el menú lateral (`Sidebar.jsx`) y el estado de la navegación, convirtiéndolo en un enrutador puro.
+
+## [27/03/2026] - Arquitectura de Identidad: El Caso de Paco (Admin + Nutricionista)
+
+### 🧑‍💼 Contexto y Decisión
+
+Paco, dueño de la empresa, necesita operar en el sistema con dos contextos completamente distintos: como **Administrador** (gestión del negocio) y como **Nutricionista** (trabajo clínico diario). Se evaluaron dos opciones:
+
+1. Un único usuario con selector de rol al login + botón de cambio de rol en sesión activa.
+2. Dos cuentas separadas, una por contexto.
+
+**Decisión tomada: Dos cuentas separadas. No se implementa ningún código adicional.**
+
+---
+
+### 🏗️ Estructura de Datos Resultante
+```
+usuarios
+├── paco.admin@nutripharma.com   → ROLE_ADMIN
+│     └── sin fila en tabla `administradores` (igual que el SuperAdmin de Nacho)
+└── paco@nutripharma.com         → ROLE_NUTRICIONISTA
+      └── tabla `nutricionistas` (relación @OneToOne con Usuario)
+```
+
+La cuenta administrativa de Paco es intencionalmente un "fantasma de negocio": existe en la tabla `usuarios` para autenticarse, pero no tiene perfil operativo. Esto es exactamente el mismo patrón que ya aplicamos con el SuperAdmin de Nacho.
+
+---
+
+### ❌ Por qué se descartó el Modal de Selección de Rol
+
+La opción del modal ("¿Entras como Admin o como Nutricionista?") es un **antipatrón** por varias razones:
+
+* **Complejidad técnica encubierta:** Cambiar de rol en mitad de una sesión activa implica reemplazar el JWT, limpiar todo el estado de React y redirigir al usuario. Técnicamente es un logout/login disfrazado de botón.
+* **Fuente de confusión para el usuario:** Obliga a Paco a tomar una decisión activa cada vez que se loguea. Si se equivoca de rol, tiene que salir y volver a entrar. Para alguien ajeno a la programación, eso es fricción innecesaria.
+* **Auditoría ambigua:** Los logs de acceso no pueden distinguir en qué contexto actuó Paco. Una única sesión birol registra "Paco hizo algo", pero no si actuó como gestor o como clínico.
+
+---
+
+### ✅ Por qué Dos Cuentas es la Decisión Correcta
+
+#### 1. Seguridad — Principio de Mínimo Privilegio (Least Privilege)
+
+Un token JWT tiene un alcance fijo e inamovible durante su vida útil. Si Paco está logueado como Nutricionista y alguien compromete su sesión, el atacante solo accede a datos clínicos. No puede tocar configuración del sistema, saldos ni gestión de usuarios. Con el modal de cambio de rol, un token comprometido potencialmente da acceso a todo el sistema.
+
+Este principio está recogido en los frameworks de seguridad enterprise más importantes: **ISO 27001**, **NIST** y las guías de auditoría de sistemas ERP como SAP, Oracle EBS y Microsoft Dynamics.
+
+#### 2. User-Friendly — El Hábito vs. La Decisión
+
+Paradójicamente, dos cuentas bien nombradas son más simples que un selector de rol. Paco aprende un hábito una sola vez:
+
+* Tablet para pasar consulta → `paco@nutripharma.com`
+* Portátil para gestionar la empresa → `paco.admin@nutripharma.com`
+
+Un hábito no requiere pensar. Una decisión en un modal, sí.
+
+#### 3. Buenas Prácticas — Identity Segregation en Sistemas ERP
+
+El término técnico exacto para esta práctica es **Identity Segregation**, derivado del principio de **Separation of Concerns (SoC)** aplicado a la capa de identidad. Es un estándar en todos los sistemas ERP enterprise.
+
+En SAP, por ejemplo, el administrador técnico del sistema (BASIS) tiene una cuenta técnica completamente separada de su cuenta funcional de negocio, aunque sea la misma persona física. **Nacho es el BASIS de NutriPharma. Paco es el usuario funcional.**
+
+#### 4. Trazabilidad y Auditoría
+
+Cuando se revisen los logs en producción (ahora o dentro de dos años), cada acción queda firmada con una identidad inequívoca y su contexto es inmediato:
+
+* `paco.admin@` en los logs → acción de gestión empresarial.
+* `paco@` en los logs → consulta clínica registrada.
+
+Esto es especialmente crítico en sistemas que manejan datos financieros y sanitarios, donde una auditoría puede exigir reconstruir exactamente qué decisión tomó quién y bajo qué rol.
+
+---
+
+### 💡 Lección de Arquitectura
+
+> La complejidad que no se justifica con un requisito real es deuda técnica. El modal de selección de rol hubiera añadido código nuevo, estado adicional en React, lógica de reemplazo de JWT y surface de ataque extra, todo para resolver un problema que dos cuentas resuelven sin escribir una sola línea. En ingeniería de software, la mejor solución suele ser la que aprovecha lo que ya existe.
+
+### [27/03/2026] - Arquitectura de Datos: Derecho al Olvido, Trazabilidad y Ciberseguridad en Producción
+
+#### 🛡️ El Dilema del Borrado en Bases de Datos
+En sistemas empresariales (ERPs, aplicaciones clínicas y financieras), borrar un registro físicamente (`DELETE` en SQL) rompe la integridad referencial. Si se elimina a un nutricionista, los pedidos o consultas históricas asociados a él quedan huérfanos o corrompen los cálculos financieros de años anteriores.
+* **Solución operativa:** Borrado Lógico (*Soft Delete*), marcando el registro como `activo = false`.
+* **El problema legal:** El *Soft Delete* choca frontalmente con el Reglamento General de Protección de Datos (RGPD) y el "Derecho al Olvido", ya que los datos personales (nombre, DNI, email) siguen intactos en la base de datos, aunque estén ocultos en la interfaz.
+
+#### ✅ La Decisión Arquitectónica: Anonimización (Seudonimización)
+Para cumplir con la ley y mantener la integridad financiera del sistema simultáneamente, no se borra la fila, se **anonimiza**.
+* Se conserva el `id` original (los pedidos y facturas históricas siguen cuadrando perfectamente).
+* Se sobrescriben los datos sensibles con valores ficticios o hashes unidireccionales:
+  * Nombre → "Usuario Eliminado"
+  * Email → `deleted_hash123@nutripharma.local`
+  * DNI → `00000000A`
+
+De esta forma, la persona física desaparece a efectos legales, pero la entidad operativa perdura a efectos de auditoría.
+
+#### ❌ La Regla de Oro: Prohibido ejecutar lógica de negocio desde el gestor SQL
+La aplicación del "Derecho al Olvido" (o cualquier modificación crítica de datos de negocio) jamás debe hacerse ejecutando sentencias manuales (`UPDATE` o `DELETE`) directamente en la base de datos de producción por un administrador.
+
+
+**¿Por qué todo debe pasar por el Backend (Capa de Aplicación)?**
+* **Lógica en Cascada:** Al invocar un endpoint (`/api/usuarios/{id}/anonimizar`), el backend no solo actualiza la base de datos, sino que orquesta acciones periféricas críticas: eliminar archivos personales en Google Drive, invalidar tokens JWT activos, y enviar correos legales de confirmación de borrado.
+* **Trazabilidad Inmutable:** La aplicación escribe en los logs y en tablas de auditoría exactamente *quién* pulsó el botón y *cuándo*, dejando un rastro criptográfico legal. Si se hace por SQL, se puentea toda la seguridad y no hay registro auditable de la operación.
+
+#### 🔐 Arquitectura de Despliegue y Ciberseguridad (Zero Trust)
+Para llevar el sistema a producción bajo estándares *enterprise*, la base de datos se blinda siguiendo el Principio de Mínimo Privilegio (*Least Privilege*):
+
+1. **Aislamiento de Red (Private Subnet):** La base de datos no tiene salida ni entrada a Internet. No se puede acceder a ella desde el exterior con clientes SQL (como DBeaver o DataGrip).
+2. **El Backend es el único VIP:** La única máquina autorizada a nivel de red para hablar con el puerto SQL es el servidor donde se ejecuta la API en Java. Las credenciales que usa la API solo tienen permisos de lectura/escritura de datos (DML), nunca permisos estructurales (`DROP TABLE`, `ALTER`).
+3. **Protocolo "Break Glass" (Romper el cristal):** Si ocurre un desastre y un ingeniero necesita entrar al SQL manualmente para arreglar datos corrompidos, no usa una contraseña estática.
+  * Se conecta vía VPN a un servidor puente aislado (*Bastion Host*).
+  * Solicita credenciales temporales (*Just-In-Time Access*) que caducan automáticamente en 2 horas.
+  * Todas sus consultas quedan grabadas para auditoría.
+
+**Conclusión:** La base de datos es "muda y tonta"; solo almacena lo que la aplicación (que es inteligente y auditable) le ordena guardar.
+
+### [27/03/2026] - Refinamiento de Datos, UX y Definición de Arquitectura Anti-Fraude
+
+#### 🧠 Decisiones de Negocio y Compliance
+* **Derecho al Olvido vs Interés Legítimo:** Se determinó que, al operar en un entorno B2B, las Farmacias no están sujetas al derecho al olvido (son entidades jurídicas). Los teléfonos y correos de las nutricionistas se consideran herramientas corporativas, por lo que prima el Interés Legítimo de la empresa para conservar la trazabilidad de operaciones frente a posibles auditorías o disputas legales.
+* **Minimización de Datos:** Se eliminó el campo `DNI` de toda la arquitectura (Backend y Frontend), sustituyéndolo por `teléfono` corporativo (no único). Esto reduce el "surface area" de datos sensibles que la aplicación almacena, mitigando riesgos de ciberseguridad.
+
+#### 🖥️ Mejoras UX en Administración (React)
+* **Visualización de Relaciones (N:M):** Implementación de un Modal de vista rápida (`ModalVerAsignaciones.jsx`) para consultar las farmacias asignadas a una nutricionista (y viceversa) sin necesidad de entrar al modo edición, reduciendo la fricción cognitiva del Administrador.
+* **Ordenación Inteligente (Smart Sorting):** En el modal de edición, las farmacias que ya están asignadas a la nutricionista "flotan" automáticamente a la parte superior de la lista, evitando el scroll innecesario.
+* **Badges y Microinteracciones:** Inclusión de etiquetas visuales rápidas (horas de contrato, porcentaje de comisión) en el listado general y sustitución del botón de stock por un interruptor (Switch estilo iOS) para mayor claridad del estado binario del producto.
+
+#### 🏗️ Roadmap Técnico Definido (Alta Integridad)
+Se validó la arquitectura para las siguientes fases críticas del proyecto:
+1. **Pruebas Periciales (Evidencias):** Vinculación de fotos de agendas físicas directamente a la entidad `Consulta` mediante una máquina de estados estricta.
+2. **Notificaciones (Event-Driven):** Uso de eventos asíncronos en Spring Boot para confirmar pedidos y consultas sin bloquear el hilo principal.
+3. **Auditoría Inmutable:** Implementación futura de **Hibernate Envers** para registrar cada `INSERT`, `UPDATE` y `DELETE`, garantizando trazabilidad absoluta ante posibles juicios por fraude.
+4. **Registro de Accesos:** Interceptores de seguridad para guardar la IP y el User-Agent de cada login y petición API.

@@ -20,7 +20,7 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
 
         String getApellidos();
 
-        String getDni();
+        String getTelefono();
 
         String getEmail();
 
@@ -30,11 +30,9 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
     }
 
     // --- 2. MÉTODOS DEL REPOSITORIO ---
-    boolean existsByDni(String dni);
-
     Optional<Nutricionista> findByUsuarioEmail(String email);
 
-    @Query(value = "SELECT n.id as id, n.nombre as nombre, n.apellidos as apellidos, n.dni as dni, u.email as email, n.fecha_baja as fechaBaja, n.borrado_por as borradoPor " +
+    @Query(value = "SELECT n.id as id, n.nombre as nombre, n.apellidos as apellidos, n.telefono as telefono, u.email as email, n.fecha_baja as fechaBaja, n.borrado_por as borradoPor " +
             "FROM nutricionistas n JOIN usuarios u ON n.usuario_id = u.id " +
             "WHERE n.activo = false", nativeQuery = true)
     List<NutriInactivoProjection> findHistorialBajas();
@@ -48,7 +46,4 @@ public interface NutricionistaRepository extends JpaRepository<Nutricionista, Lo
     @Modifying
     @Query(value = "UPDATE nutricionistas SET activo = true, fecha_baja = NULL, borrado_por = NULL WHERE id = ?1", nativeQuery = true)
     void reactivarNutricionista(Long id);
-
-    @Query(value = "SELECT * FROM nutricionistas WHERE dni = :dni", nativeQuery = true)
-    java.util.Optional<com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista> findByDniIgnorandoBajas(@org.springframework.data.repository.query.Param("dni") String dni);
 }

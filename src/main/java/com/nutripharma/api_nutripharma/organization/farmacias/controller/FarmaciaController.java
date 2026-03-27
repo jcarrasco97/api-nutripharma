@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/farmacias")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // <--- ¡AÑADE ESTO!
+@CrossOrigin(origins = "http://localhost:5173")
 public class FarmaciaController {
 
     private final FarmaciaService farmaciaService;

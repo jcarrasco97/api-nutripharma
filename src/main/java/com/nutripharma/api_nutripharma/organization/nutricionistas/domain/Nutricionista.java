@@ -34,8 +34,8 @@ public class Nutricionista {
     @Column(nullable = false, length = 150)
     private String apellidos;
 
-    @Column(nullable = false, unique = true, length = 20)
-    private String dni;
+    @Column(nullable = false, length = 20) // Nota: Sin unique=true
+    private String telefono;
 
     // Dato crucial para calcular si debe horas o tiene saldo a favor en el Resumen
     @Column(name = "horas_contrato_mensual", nullable = false)

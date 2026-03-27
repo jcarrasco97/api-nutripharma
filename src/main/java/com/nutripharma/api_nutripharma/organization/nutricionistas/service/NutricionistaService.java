@@ -33,23 +33,12 @@ public class NutricionistaService {
 
     @Transactional
     public NutricionistaDTO.NutricionistaResponse crearNutricionista(NutricionistaDTO.NutricionistaRequest request) {
-        // 1. Validar Email (Alma)
         var usuarioExistente = usuarioRepository.findByEmailIgnorandoBajas(request.email());
         if (usuarioExistente.isPresent()) {
             if (usuarioExistente.get().getActivo()) {
                 throw new IllegalArgumentException("El email ya está registrado y activo en el sistema.");
             } else {
                 throw new IllegalArgumentException("Este email pertenece a una cuenta dada de baja. Ve al Historial de Bajas para restaurarla.");
-            }
-        }
-
-        // 2. Validar DNI (Cuerpo)
-        var nutriExistente = nutricionistaRepository.findByDniIgnorandoBajas(request.dni());
-        if (nutriExistente.isPresent()) {
-            if (nutriExistente.get().getActivo()) {
-                throw new IllegalArgumentException("Ya existe una nutricionista activa con este DNI.");
-            } else {
-                throw new IllegalArgumentException("Este DNI pertenece a una nutricionista dada de baja. Ve al Historial de Bajas para restaurarla.");
             }
         }
 
@@ -69,9 +58,9 @@ public class NutricionistaService {
                 .usuario(nuevoUsuario)
                 .nombre(request.nombre())
                 .apellidos(request.apellidos())
-                .dni(request.dni())
+                .telefono(request.telefono()) // <-- Reemplazado (antes dni)
                 .horasContratoMensual(request.horasContratoMensual())
-                .asignaciones(new ArrayList<>()) // Inicializamos la lista vacía
+                .asignaciones(new ArrayList<>())
                 .build();
 
         // --- Construimos las asignaciones con los kilómetros ---
@@ -182,7 +171,7 @@ public class NutricionistaService {
                 n.getUsuario().getEmail(),
                 n.getNombre(),
                 n.getApellidos(),
-                n.getDni(),
+                n.getTelefono(),
                 n.getHorasContratoMensual(),
                 asignacionesResponse // <-- Retornamos la lista compleja
         );

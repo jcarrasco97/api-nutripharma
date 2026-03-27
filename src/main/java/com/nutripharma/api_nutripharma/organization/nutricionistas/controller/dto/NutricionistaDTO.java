@@ -22,9 +22,9 @@ public class NutricionistaDTO {
             String password,
             String nombre,
             String apellidos,
-            String dni,
+            String telefono,
             Integer horasContratoMensual,
-            List<AsignacionRequest> asignaciones // <-- ACTUALIZADO
+            List<AsignacionRequest> asignaciones
     ) {}
 
     public record NutricionistaResponse(
@@ -32,9 +32,9 @@ public class NutricionistaDTO {
             String email,
             String nombre,
             String apellidos,
-            String dni,
+            String telefono,
             Integer horasContratoMensual,
-            List<AsignacionResponse> asignaciones // <-- ACTUALIZADO
+            List<AsignacionResponse> asignaciones
     ) {}
 
     public record NutricionistaUpdateRequest(
