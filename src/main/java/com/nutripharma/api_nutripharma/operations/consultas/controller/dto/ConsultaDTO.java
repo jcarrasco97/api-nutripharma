@@ -36,6 +36,7 @@ public class ConsultaDTO {
             Integer personalFarmacia,
             String observacionesJornada,
             EstadoConsulta estado,
-            String mensajeIncidencia
+            String mensajeIncidencia,
+            String evidenciaUrl
     ) {}
 }

@@ -980,3 +980,17 @@ Se validó la arquitectura para las siguientes fases críticas del proyecto:
 2. **Notificaciones (Event-Driven):** Uso de eventos asíncronos en Spring Boot para confirmar pedidos y consultas sin bloquear el hilo principal.
 3. **Auditoría Inmutable:** Implementación futura de **Hibernate Envers** para registrar cada `INSERT`, `UPDATE` y `DELETE`, garantizando trazabilidad absoluta ante posibles juicios por fraude.
 4. **Registro de Accesos:** Interceptores de seguridad para guardar la IP y el User-Agent de cada login y petición API.
+
+## [07/04/2026] 📸 Sistema de Evidencias Fotográficas ("Prueba de Vida")
+
+### Integración Cloud Segura
+Implementación de subida/descarga de archivos binarios (`multipart/form-data`) conectados directamente a la API de Google Drive desde Spring Boot, aislando el almacenamiento pesado de la base de datos principal.
+
+### Mutabilidad por Estados (Smart Lock)
+Creación de una máquina de estados para la interfaz. El nutricionista tiene libertad para adjuntar, visualizar (mediante previsualizaciones generadas en memoria RAM con `URL.createObjectURL`) y sustituir la foto libremente mientras la consulta esté en `BORRADOR`.
+
+### Sellado de Auditoría
+Al pasar la consulta a estado `VALIDADA`, la interfaz aplica un bloqueo inmutable (candado) sobre la evidencia. El archivo queda sellado criptográficamente para auditorías de nóminas y comisiones.
+
+### Flujo de Desbloqueo (Unlock-by-Admin)
+El Administrador dispone de un visor inmersivo de evidencias en su Centro de Validaciones con capacidad destructiva. Si la evidencia es ilegible, el admin ejecuta un borrado físico en Drive que reabre la consulta automáticamente para que el nutricionista enmiende el error.

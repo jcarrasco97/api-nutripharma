@@ -85,4 +85,39 @@ public class ConsultaController {
     public ResponseEntity<ConsultaResponse> cancelarTurnoAdmin(@PathVariable Long id) {
         return ResponseEntity.ok(consultaService.cancelarTurnoAdmin(id));
     }
+
+    @PostMapping(value = "/{id}/evidencia", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('NUTRICIONISTA') or hasRole('ADMIN')")
+    public ResponseEntity<Void> subirEvidenciaFotografica(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            java.security.Principal principal) {
+        try {
+            consultaService.adjuntarEvidencia(id, file, principal.getName());
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping(value = "/{id}/evidencia", produces = org.springframework.http.MediaType.IMAGE_JPEG_VALUE)
+    @PreAuthorize("hasRole('NUTRICIONISTA') or hasRole('ADMIN')")
+    public ResponseEntity<byte[]> verEvidenciaFotografica(@PathVariable Long id, java.security.Principal principal) {
+        try {
+            byte[] imagen = consultaService.descargarEvidencia(id, principal.getName());
+            return ResponseEntity.ok().body(imagen);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}/evidencia")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConsultaResponse> eliminarEvidenciaAdmin(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(consultaService.eliminarEvidenciaAdmin(id));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }

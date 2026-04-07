@@ -73,4 +73,11 @@ public class Consulta {
     // Si abren incidencia, guardamos aquí el motivo ("Me equivoqué, puse 2 y eran 3")
     @Column(name = "mensaje_incidencia", columnDefinition = "TEXT")
     private String mensajeIncidencia;
+
+    // --- EVIDENCIAS (Prueba de Vida) ---
+    @Column(name = "evidencia_url", length = 500)
+    private String evidenciaUrl; // Guardaremos el ID del archivo en Drive
+
+    @Column(name = "evidencia_fecha")
+    private java.time.LocalDateTime evidenciaFecha;
 }

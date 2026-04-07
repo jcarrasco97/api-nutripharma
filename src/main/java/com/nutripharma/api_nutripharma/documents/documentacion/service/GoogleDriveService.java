@@ -75,4 +75,20 @@ public class GoogleDriveService {
     public void eliminarArchivo(String fileId) throws IOException, GeneralSecurityException {
         getDriveService().files().delete(fileId).execute();
     }
+
+    // 👇 NUEVO MÉTODO PARA FOTOS DE AGENDAS 👇
+    public String subirEvidencia(MultipartFile archivo, Long consultaId) throws IOException, GeneralSecurityException {
+        File fileMetadata = new File();
+        // Le ponemos un prefijo para que en Drive no sea un caos de fotos genéricas
+        fileMetadata.setName("EVIDENCIA_TURNO_" + consultaId + "_" + archivo.getOriginalFilename());
+        fileMetadata.setParents(Collections.singletonList(folderId));
+
+        InputStreamContent mediaContent = new InputStreamContent(archivo.getContentType(), archivo.getInputStream());
+
+        File file = getDriveService().files().create(fileMetadata, mediaContent)
+                .setFields("id")
+                .execute();
+
+        return file.getId();
+    }
 }

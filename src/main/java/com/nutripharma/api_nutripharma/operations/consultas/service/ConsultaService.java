@@ -9,6 +9,8 @@ import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository;
+import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository; // <-- Añadido
+import com.nutripharma.api_nutripharma.documents.documentacion.service.GoogleDriveService; // <-- Añadido
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,8 @@ public class ConsultaService {
     private final ConsultaRepository consultaRepository;
     private final NutricionistaRepository nutricionistaRepository;
     private final FarmaciaRepository farmaciaRepository;
-
+    private final UsuarioRepository usuarioRepository; // <-- Faltaba inyectar esto
+    private final GoogleDriveService googleDriveService; // <-- Faltaba inyectar esto
     @Transactional
     public ConsultaResponse registrarTurno(ConsultaRequest request) {
 
@@ -217,6 +220,63 @@ public class ConsultaService {
         return consultaRepository.findByFarmaciaUsuarioEmailOrderByFechaDesc(email).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional
+    public void adjuntarEvidencia(Long consultaId, org.springframework.web.multipart.MultipartFile archivo, String emailNutricionista) throws Exception {
+        Consulta consulta = consultaRepository.findById(consultaId)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+
+        // Validar que el nutricionista que sube la foto es el dueño de la consulta (o es un admin)
+        boolean esDueño = consulta.getNutricionista().getUsuario().getEmail().equals(emailNutricionista);
+        boolean isAdmin = usuarioRepository.findByEmailIgnorandoBajas(emailNutricionista)
+                .orElseThrow()
+                .getRoles().stream().anyMatch(r -> r.getNombre().contains("ADMIN"));
+
+        if (!esDueño && !isAdmin) {
+            throw new SecurityException("No tienes permiso para adjuntar evidencias a este turno.");
+        }
+
+        // Subir a Drive
+        String driveFileId = googleDriveService.subirEvidencia(archivo, consultaId);
+
+        // Actualizar la consulta
+        consulta.setEvidenciaUrl(driveFileId);
+        consulta.setEvidenciaFecha(java.time.LocalDateTime.now());
+
+        consultaRepository.save(consulta);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] descargarEvidencia(Long consultaId, String emailUsuario) throws Exception {
+        Consulta consulta = consultaRepository.findById(consultaId)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+
+        if (consulta.getEvidenciaUrl() == null) {
+            throw new IllegalStateException("Esta consulta no tiene ninguna foto adjunta.");
+        }
+
+        // Descargamos los bytes directamente desde Google Drive usando el ID guardado
+        return googleDriveService.descargarArchivo(consulta.getEvidenciaUrl());
+    }
+
+    @Transactional
+    public ConsultaResponse eliminarEvidenciaAdmin(Long consultaId) throws Exception {
+        Consulta consulta = consultaRepository.findById(consultaId)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+
+        if (consulta.getEvidenciaUrl() == null) {
+            throw new IllegalStateException("Esta consulta no tiene evidencia para borrar.");
+        }
+
+        // 1. Destruimos el archivo físicamente en Google Drive
+        googleDriveService.eliminarArchivo(consulta.getEvidenciaUrl());
+
+        // 2. Limpiamos los campos en la Base de Datos
+        consulta.setEvidenciaUrl(null);
+        consulta.setEvidenciaFecha(null);
+
+        return mapToResponse(consultaRepository.save(consulta));
+    }
+
     private ConsultaResponse mapToResponse(Consulta c) {
         return new ConsultaResponse(
                 c.getId(),
@@ -232,7 +292,8 @@ public class ConsultaService {
                 c.getPersonalFarmacia(),
                 c.getObservacionesJornada(),
                 c.getEstado(),
-                c.getMensajeIncidencia()
+                c.getMensajeIncidencia(),
+                c.getEvidenciaUrl()
         );
     }
 }
