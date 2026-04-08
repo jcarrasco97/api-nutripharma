@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmación de Pedido</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f7f4;">
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f7f4; padding: 40px 0;">
+    <tr>
+        <td align="center">
+            <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+
+                <tr>
+                    <td align="center" style="padding: 40px 20px 20px 20px;">
+                        <img src="cid:logoNutripharma" alt="Nutripharma" width="220" style="display: block; max-width: 100%; height: auto; border: 0;">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding: 20px 40px;">
+                        <h2 style="margin-top: 0; color: #062e3a; font-size: 24px;">Pedido Confirmado <span th:text="'#' + ${pedidoId}">#000</span></h2>
+
+                        <p style="font-size: 16px; line-height: 1.6; color: #342c1e;">Hola <strong th:text="${nombreFarmacia}">Farmacia</strong>,</p>
+
+                        <p style="font-size: 16px; line-height: 1.6; color: #342c1e;">
+                            Le confirmamos que su pedido por un total de <strong style="color: #367933; font-size: 18px;" th:text="${totalPedido} + ' €'">0.00 €</strong> ha sido validado correctamente.
+                        </p>
+
+                        <p style="font-size: 16px; line-height: 1.6; color: #342c1e;">
+                            <strong>Adjunto a este correo encontrará la factura</strong> correspondiente para su contabilidad.
+                        </p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td align="center" style="padding: 20px 40px 40px 40px;">
+                        <table border="0" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td align="center" bgcolor="#367933" style="border-radius: 12px;">
+                                    <a th:href="${urlLogin}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; color: #ffffff; text-decoration: none; border-radius: 12px;">
+                                        Acceder a la plataforma
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

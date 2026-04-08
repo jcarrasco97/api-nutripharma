@@ -15,6 +15,8 @@ import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.nutripharma.api_nutripharma.core.events.PedidoConfirmadoEvent; // <-- IMPORTA EL EVENTO
+import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTA EL PUBLICADOR
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ public class PedidoService {
     private final FarmaciaRepository farmaciaRepository;
     private final NutricionistaRepository nutricionistaRepository;
     private final ProductoRepository productoRepository;
+    private final ApplicationEventPublisher eventPublisher; // <-- INYECTA EL EVENT PUBLISHER
 
     private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
 
@@ -186,7 +189,22 @@ public class PedidoService {
         }
 
         pedido.setEstado(EstadoPedido.ENVIADO);
-        return mapToResponse(pedidoRepository.save(pedido));
+
+        // Guardamos explícitamente para tener el objeto final
+        Pedido pedidoGuardado = pedidoRepository.save(pedido);
+
+        // 👇 DISPARAMOS EL EVENTO AL AIRE PARA QUE LO COJA EL EMAIL 👇
+        // Usamos tu método privado para calcular el importe real de forma segura
+        double totalReal = calcularTotalRealPedido(pedidoGuardado).doubleValue();
+
+        eventPublisher.publishEvent(new PedidoConfirmadoEvent(
+                pedidoGuardado.getId(),
+                pedidoGuardado.getFarmacia().getUsuario().getEmail(),
+                pedidoGuardado.getFarmacia().getNombre(),
+                totalReal
+        ));
+
+        return mapToResponse(pedidoGuardado);
     }
 
     private BigDecimal calcularTotalRealPedido(Pedido pedido) {

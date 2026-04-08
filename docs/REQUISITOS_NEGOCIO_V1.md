@@ -157,3 +157,17 @@ Se utilizan exclusivamente en zonas de alto impacto (Hero Cards) para romper la 
 
 - **Gradiente Claro:** De `#bed000` a `#85ac1c`
 - **Gradiente Oscuro:** De `#006633` a `#68b54e`
+
+## 6. COMUNICACIONES Y AUDITORÍA DE DATOS 🆕 [NUEVO]
+
+### 6.1. Notificaciones Transaccionales B2B
+- **Arquitectura Event-Driven:** Los envíos de correo (ej. confirmación de pedidos, envío de facturas) se ejecutan en hilos asíncronos (background) para no bloquear la experiencia de usuario en el frontend.
+- **Formato Corporativo y Adjuntos:** Los correos utilizan plantillas HTML renderizadas en servidor (Thymeleaf) que incrustan el branding (logos CID) y adjuntan documentos PDF generados al vuelo (OpenPDF) parametrizando los enlaces según el entorno de despliegue (DEV/PROD).
+
+### 6.2. El "Notario Digital" (Trazabilidad Inmutable)
+- **Historial de Cambios (Audit Logs):** Implementación de tablas "espejo" inmutables que registran automáticamente cualquier `INSERT`, `UPDATE` o `DELETE` realizado sobre entidades críticas (Consultas y Pedidos).
+- **Identidad Fuerte y Valor Pericial:** Cada revisión almacena la fecha, el milisegundo exacto y el correo electrónico del usuario responsable de la mutación de los datos, garantizando trazabilidad absoluta ante auditorías financieras o posibles juicios.
+
+### 6.3. Trazabilidad de Red y Accesos
+- Registro sistemático y persistente de la dirección IP y el dispositivo (User-Agent) de cada usuario en el momento de realizar un login exitoso.
+- Trazabilidad de operaciones críticas en el backend mediante interceptores, registrando el autor, la ruta y el resultado de las acciones de escritura en la API.

@@ -994,3 +994,17 @@ Al pasar la consulta a estado `VALIDADA`, la interfaz aplica un bloqueo inmutabl
 
 ### Flujo de Desbloqueo (Unlock-by-Admin)
 El Administrador dispone de un visor inmersivo de evidencias en su Centro de Validaciones con capacidad destructiva. Si la evidencia es ilegible, el admin ejecuta un borrado físico en Drive que reabre la consulta automáticamente para que el nutricionista enmiende el error.
+
+## [08/04/2026] 📧 Sistema de Notificaciones Transaccionales (Event-Driven)
+
+### Arquitectura Asíncrona (Pub/Sub)
+Implementación del patrón Publisher-Subscriber mediante eventos de Spring (`@TransactionalEventListener` y `@Async`). El envío de correos se delega a un hilo secundario estrictamente tras el `COMMIT` de la base de datos, garantizando tiempos de respuesta instantáneos en el frontend de React.
+
+### Entornos y Mocking Seguros (Sandbox)
+Configuración de Mailtrap como servidor SMTP Sandbox para el entorno de desarrollo. Esto aísla los envíos, permitiendo pruebas reales de formato y adjuntos sin el riesgo de enviar correos accidentales a clientes reales.
+
+### Motor de Plantillas y Branding (Thymeleaf)
+Diseño de correos B2B en HTML compatible con clientes corporativos. Las variables (totales, nombres) y enlaces dinámicos al VPS se inyectan desde el backend. Se implementó la incrustación del logo corporativo mediante Content-ID (CID inline) para garantizar su visualización en Outlook y Gmail.
+
+### Infraestructura PDF (OpenPDF)
+Integración de OpenPDF como generador de documentos y facturas directamente en memoria RAM (`ByteArrayOutputStream`). El documento se genera al vuelo y se adjunta automáticamente al correo, evitando la persistencia temporal en el disco duro del servidor por razones de seguridad y rendimiento.
