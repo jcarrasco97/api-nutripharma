@@ -10,6 +10,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.nutripharma.api_nutripharma.core.events.LoginSuccessEvent; // <-- IMPORTAR EVENTO
+import jakarta.servlet.http.HttpServletRequest; // <-- IMPORTAR REQUEST
+import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTAR PUBLICADOR
 
 import java.util.Set;
 
@@ -22,6 +25,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+
+    // Inyecciones para la auditoría de seguridad
+    private final HttpServletRequest request;
+    private final ApplicationEventPublisher eventPublisher;
 
     public String login(String username, String password) {
         // 1. Delegamos a Spring Security la comprobación de la contraseña encriptada
@@ -38,6 +45,34 @@ public class AuthService {
         if (!usuario.getActivo()) {
             throw new IllegalStateException("La cuenta de usuario se encuentra inactiva.");
         }
+
+        // =========================================================================
+        // 🛡️ INICIO BLOQUE AUDITORÍA: TRAZABILIDAD DE RED (El "Gran Hermano")
+        // =========================================================================
+
+        // A) Extraemos la IP real del usuario.
+        // Comprobamos primero 'X-Forwarded-For' por si la app está detrás de un proxy (ej. Nginx en el VPS).
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            // Si está vacía, cogemos la IP de la conexión directa (útil en localhost).
+            ipAddress = request.getRemoteAddr();
+        }
+
+        // B) Extraemos el dispositivo, SO y navegador (User-Agent)
+        String userAgent = request.getHeader("User-Agent");
+
+        // C) Disparamos el evento de forma Asíncrona.
+        // Nuestro 'SeguridadEventListener' lo cazará al vuelo y lo guardará en BD.
+        // Esto permite que el login siga siendo instantáneo para el usuario.
+        eventPublisher.publishEvent(new LoginSuccessEvent(
+                usuario.getEmail(),
+                ipAddress,
+                userAgent
+        ));
+
+        // =========================================================================
+        // 🛡️ FIN BLOQUE AUDITORÍA
+        // =========================================================================
 
         // 4. Generamos el JWT pasándole el UserDetails (que ahora incluye sus roles)
         return jwtService.generateToken(usuario);

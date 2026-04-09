@@ -697,166 +697,292 @@ módulo entero hacia otra aplicación.
 
 * Purgado y recreación de esquemas (Drop/Create) para consolidar la tabla `pedido_reparto`.
 
-
 ## [24/03/2026] - Comisiones Dinámicas, Soft Delete, RBAC Avanzado y Rendimiento
 
 ### ⚙️ Backend (Spring Boot)
-* **Comisiones Variables:** Eliminado el "hardcode" del 30% en el cálculo del Saldo Virtual. Implementada la columna `porcentaje_comision` en `Farmacia` y actualizado `ConsultaService` para calcular el reparto dinámicamente.
-* **Módulo Personal Interno:** Creado `PersonalInternoService` y su controlador para que el administrador pueda dar de alta nuevas credenciales con el rol `ROLE_ADMIN` directamente desde el panel.
-* **Evolución RBAC (Control de Accesos):** Introducido el rol `ROLE_SUPERADMIN` en el DataSeeder (asignado a Paco) para crear la jerarquía que blindará la eliminación de otros administradores.
-* **Implementación de Borrado Lógico (Soft Delete):** * Añadidas anotaciones `@SQLDelete` y `@SQLRestriction("activo = true")` en `Producto`, `Usuario`, `Farmacia` y `Nutricionista`.
-  * Los comandos `repository.delete()` ahora ejecutan un `UPDATE` en segundo plano, manteniendo la integridad referencial de los datos históricos (pedidos y consultas antiguas).
+
+* **Comisiones Variables:** Eliminado el "hardcode" del 30% en el cálculo del Saldo Virtual. Implementada la columna
+  `porcentaje_comision` en `Farmacia` y actualizado `ConsultaService` para calcular el reparto dinámicamente.
+* **Módulo Personal Interno:** Creado `PersonalInternoService` y su controlador para que el administrador pueda dar de
+  alta nuevas credenciales con el rol `ROLE_ADMIN` directamente desde el panel.
+* **Evolución RBAC (Control de Accesos):** Introducido el rol `ROLE_SUPERADMIN` en el DataSeeder (asignado a Paco) para
+  crear la jerarquía que blindará la eliminación de otros administradores.
+* **Implementación de Borrado Lógico (Soft Delete):** * Añadidas anotaciones `@SQLDelete` y
+  `@SQLRestriction("activo = true")` en `Producto`, `Usuario`, `Farmacia` y `Nutricionista`.
+    * Los comandos `repository.delete()` ahora ejecutan un `UPDATE` en segundo plano, manteniendo la integridad
+      referencial de los datos históricos (pedidos y consultas antiguas).
 
 ### 💻 Frontend (React)
-* **Formularios Dinámicos:** Integrado el campo "Porcentaje de Comisión" en el CRUD de Farmacias (`VistaAdministracion.jsx`).
-* **Panel de Personal:** Habilitada la nueva pestaña de "Personal Interno" para la creación ágil de credenciales maestras.
+
+* **Formularios Dinámicos:** Integrado el campo "Porcentaje de Comisión" en el CRUD de Farmacias (
+  `VistaAdministracion.jsx`).
+* **Panel de Personal:** Habilitada la nueva pestaña de "Personal Interno" para la creación ágil de credenciales
+  maestras.
 
 ---
 
 > 💡 **RINCÓN ARQUITECTÓNICO Y APRENDIZAJES DE DISEÑO (ENTERPRISE)**
 >
 > * **Gestión del Almacenamiento (El mito de los 20GB):**
-    >   * Las bases de datos relacionales (texto plano) ocupan muy poco espacio. Un millón de registros apenas suponen ~300MB. La saturación en servidores Legacy suele deberse a archivos físicos, logs sin rotación y backups acumulados.
->   * *Solución aplicada:* Externalización total de archivos a Google Drive (la DB solo guarda el ID alfanumérico). Para datos a largo plazo (+5 años), se aplicará archivado en frío (Cold Storage) exportando los registros con `activo=false` a archivos CSV comprimidos antes de ejecutar un *Hard Delete* real.
+    >   * Las bases de datos relacionales (texto plano) ocupan muy poco espacio. Un millón de registros apenas suponen ~
+    300MB. La saturación en servidores Legacy suele deberse a archivos físicos, logs sin rotación y backups acumulados.
+    >
+* *Solución aplicada:* Externalización total de archivos a Google Drive (la DB solo guarda el ID alfanumérico). Para
+  datos a largo plazo (+5 años), se aplicará archivado en frío (Cold Storage) exportando los registros con
+  `activo=false` a archivos CSV comprimidos antes de ejecutar un *Hard Delete* real.
 >
 > * **Borrado Lógico vs Borrado Físico:**
-    >   * En software médico y financiero **nunca** se ejecuta un `DELETE` en SQL. Se utiliza el Soft Delete (`activo=false`) para aislar los datos visualmente en el Frontend sin destruir la trazabilidad del Backend. Así, un empleado despedido no desaparece de las auditorías de nóminas pasadas, y un producto descatalogado no rompe el historial de facturación de las farmacias.
+    >   * En software médico y financiero **nunca** se ejecuta un `DELETE` en SQL. Se utiliza el Soft Delete (
+    `activo=false`) para aislar los datos visualmente en el Frontend sin destruir la trazabilidad del Backend. Así, un
+    empleado despedido no desaparece de las auditorías de nóminas pasadas, y un producto descatalogado no rompe el
+    historial de facturación de las farmacias.
 >
 > * **Asincronía, Concurrencia y el JWT (Stateless):**
-    >   * El comportamiento de "sobrescribir sesiones" al abrir múltiples pestañas no es un límite del servidor, sino del `localStorage` del navegador, que es compartido por el mismo dominio. (Se testea abriendo modo incógnito o navegadores distintos).
->   * *Escalabilidad del Despliegue:* El servidor Spring Boot (Tomcat) es multihilo. El uso de tokens JWT es *Stateless* (sin estado), lo que significa que el servidor no consume memoria RAM guardando la sesión de cada usuario; simplemente valida la firma criptográfica en milisegundos. Esta arquitectura soporta miles de peticiones simultáneas sin cuellos de botella.
+    >   * El comportamiento de "sobrescribir sesiones" al abrir múltiples pestañas no es un límite del servidor, sino
+    del `localStorage` del navegador, que es compartido por el mismo dominio. (Se testea abriendo modo incógnito o
+    navegadores distintos).
+    >
+* *Escalabilidad del Despliegue:* El servidor Spring Boot (Tomcat) es multihilo. El uso de tokens JWT es *Stateless* (
+  sin estado), lo que significa que el servidor no consume memoria RAM guardando la sesión de cada usuario; simplemente
+  valida la firma criptográfica en milisegundos. Esta arquitectura soporta miles de peticiones simultáneas sin cuellos
+  de botella.
 
 ## Fase: Sistema de Borrado Lógico y "Cementerios de Datos" (Trazabilidad Fase 1)
 
 ### 🛠️ Backend (Spring Boot)
-* **Implementación de Soft Delete (Borrado Lógico):** Modificación de las entidades `Nutricionista`, `Farmacia`, `Producto` y `Administrador` añadiendo el atributo `Boolean activo = true`.
-* **Anotaciones de Hibernate:** Uso de `@SQLDelete` para interceptar las peticiones de borrado y convertirlas en `UPDATE tabla SET activo = false`, y `@SQLRestriction("activo = true")` para que las consultas por defecto solo devuelvan registros activos.
-* **Proyecciones SQL Anidadas:** Creación de interfaces anidadas (ej. `NutriInactivoProjection`, `AdminInactivoProjection`) dentro de los repositorios para mapear exclusivamente los datos necesarios del historial de bajas.
-* **Consultas Nativas (Native Queries):** Implementación de métodos con `@Query(value = "...", nativeQuery = true)` para saltarse la restricción de Hibernate y poder rescatar los registros inactivos (`activo = false`).
-* **Controladores y Seguridad:** Creación de endpoints `/bajas` protegidos con `@PreAuthorize` e integración del parche de CORS (`@CrossOrigin`).
-* **Escudo Protector de SuperAdmin:** Modificación en `PersonalInternoService` para impedir el borrado de cualquier usuario con el rol `ROLE_SUPERADMIN`, lanzando una excepción `400 Bad Request` controlada.
+
+* **Implementación de Soft Delete (Borrado Lógico):** Modificación de las entidades `Nutricionista`, `Farmacia`,
+  `Producto` y `Administrador` añadiendo el atributo `Boolean activo = true`.
+* **Anotaciones de Hibernate:** Uso de `@SQLDelete` para interceptar las peticiones de borrado y convertirlas en
+  `UPDATE tabla SET activo = false`, y `@SQLRestriction("activo = true")` para que las consultas por defecto solo
+  devuelvan registros activos.
+* **Proyecciones SQL Anidadas:** Creación de interfaces anidadas (ej. `NutriInactivoProjection`,
+  `AdminInactivoProjection`) dentro de los repositorios para mapear exclusivamente los datos necesarios del historial de
+  bajas.
+* **Consultas Nativas (Native Queries):** Implementación de métodos con `@Query(value = "...", nativeQuery = true)` para
+  saltarse la restricción de Hibernate y poder rescatar los registros inactivos (`activo = false`).
+* **Controladores y Seguridad:** Creación de endpoints `/bajas` protegidos con `@PreAuthorize` e integración del parche
+  de CORS (`@CrossOrigin`).
+* **Escudo Protector de SuperAdmin:** Modificación en `PersonalInternoService` para impedir el borrado de cualquier
+  usuario con el rol `ROLE_SUPERADMIN`, lanzando una excepción `400 Bad Request` controlada.
 
 <div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
 <strong>💡 LECCIONES DE ARQUITECTURA Y BUENAS PRÁCTICAS 💡</strong><br><br>
 
-<strong>1. El "Hard Delete" está prohibido en Sistemas Enterprise:</strong> En aplicaciones del sector médico o financiero, jamás se elimina una fila de la base de datos, ya que destruiría la integridad referencial (Foreign Keys) de facturas, consultas o contratos pasados. El <em>Borrado Lógico</em> (Soft Delete) permite mantener el ID vivo en la sombra.<br><br>
+<strong>1. El "Hard Delete" está prohibido en Sistemas Enterprise:</strong> En aplicaciones del sector médico o
+financiero, jamás se elimina una fila de la base de datos, ya que destruiría la integridad referencial (Foreign Keys) de
+facturas, consultas o contratos pasados. El <em>Borrado Lógico</em> (Soft Delete) permite mantener el ID vivo en la
+sombra.<br><br>
 
-<strong>2. Gestión del "Root User" (Cuenta Break-Glass):</strong> El usuario fundador (SuperAdmin inyectado por el DataSeeder) existe en la tabla base de <code>usuarios</code> (para loguearse) pero NO en la tabla derivada de <code>administradores</code>. Esto es una excelente práctica de ciberseguridad corporativa: el Root User debe ser un "fantasma" sin interfaz visual para evitar borrados accidentales o manipulaciones desde el propio panel de control.<br><br>
+<strong>2. Gestión del "Root User" (Cuenta Break-Glass):</strong> El usuario fundador (SuperAdmin inyectado por el
+DataSeeder) existe en la tabla base de <code>usuarios</code> (para loguearse) pero NO en la tabla derivada de <code>
+administradores</code>. Esto es una excelente práctica de ciberseguridad corporativa: el Root User debe ser un "
+fantasma" sin interfaz visual para evitar borrados accidentales o manipulaciones desde el propio panel de
+control.<br><br>
 
-<strong>3. El Misterio del "Falso 404":</strong> Cuando el Frontend recibe un error <code>404 Not Found</code> al llamar a una API que SÍ existe, suele ser provocado por un fallo crítico (500) en la base de datos (como buscar una columna inexistente). Spring Boot, al explotar, intenta redirigir el fallo a una ruta <code>/error</code> que no tenemos configurada, lo que resulta en un 404 engañoso que enmascara el problema real.
+<strong>3. El Misterio del "Falso 404":</strong> Cuando el Frontend recibe un error <code>404 Not Found</code> al llamar
+a una API que SÍ existe, suele ser provocado por un fallo crítico (500) en la base de datos (como buscar una columna
+inexistente). Spring Boot, al explotar, intenta redirigir el fallo a una ruta <code>/error</code> que no tenemos
+configurada, lo que resulta en un 404 engañoso que enmascara el problema real.
 </div>
 
 ### 🖥️ Frontend (React & Feature-Based Architecture)
-* **Alineación Absoluta de URLs:** Estandarización de las constantes `API_URL` en los servicios (`nutricionistasService.js`, `farmaciaService.js`, `personalInternoService.js`) apuntando a rutas en plural para encajar con el Backend y evitar problemas de concatenación.
-* **Carga Concurrente Tolerante a Fallos:** Modificación de las funciones `cargarDatos` utilizando `Promise.all`. Se ha implementado un bloque `.catch(() => [])` en las peticiones del historial de bajas para evitar que un error de red bloquee la renderización de la lista principal.
-* **UI del "Cementerio de Datos":** Construcción de un toggle visual en `VistaAdministracion.jsx` y `VistaPersonalInterno.jsx` que despliega una lista secundaria de solo lectura. Se ha usado estilizado con Tailwind (`grayscale opacity-75 line-through`) para dar feedback visual claro de que son registros inactivos/borrados.
+
+* **Alineación Absoluta de URLs:** Estandarización de las constantes `API_URL` en los servicios (
+  `nutricionistasService.js`, `farmaciaService.js`, `personalInternoService.js`) apuntando a rutas en plural para
+  encajar con el Backend y evitar problemas de concatenación.
+* **Carga Concurrente Tolerante a Fallos:** Modificación de las funciones `cargarDatos` utilizando `Promise.all`. Se ha
+  implementado un bloque `.catch(() => [])` en las peticiones del historial de bajas para evitar que un error de red
+  bloquee la renderización de la lista principal.
+* **UI del "Cementerio de Datos":** Construcción de un toggle visual en `VistaAdministracion.jsx` y
+  `VistaPersonalInterno.jsx` que despliega una lista secundaria de solo lectura. Se ha usado estilizado con Tailwind (
+  `grayscale opacity-75 line-through`) para dar feedback visual claro de que son registros inactivos/borrados.
 
 <div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
 <strong>💡 LECCIONES DE FRONTEND Y FLUJO DE DATOS 💡</strong><br><br>
 
-<strong>1. El Peligro de Promise.all:</strong> Si solicitas 5 endpoints al mismo tiempo usando <code>await Promise.all([...])</code> y uno solo devuelve un error (ej. un 403 o 404), la promesa entera es rechazada y la vista no carga absolutamente nada. Atar un <code>.catch()</code> individual a las peticiones no críticas (como las bajas) blinda la experiencia del usuario.<br><br>
+<strong>1. El Peligro de Promise.all:</strong> Si solicitas 5 endpoints al mismo tiempo usando <code>await
+Promise.all([...])</code> y uno solo devuelve un error (ej. un 403 o 404), la promesa entera es rechazada y la vista no
+carga absolutamente nada. Atar un <code>.catch()</code> individual a las peticiones no críticas (como las bajas) blinda
+la experiencia del usuario.<br><br>
 
-<strong>2. Renderizado Condicional de Trazabilidad:</strong> Al separar los estados (<code>admins</code> vs <code>adminsBajas</code>), la UI se mantiene limpia. Los datos "zombis" no contaminan la tabla principal de trabajo, pero están a un solo clic de distancia para propósitos de auditoría o futura restauración.
+<strong>2. Renderizado Condicional de Trazabilidad:</strong> Al separar los estados (<code>admins</code> vs <code>
+adminsBajas</code>), la UI se mantiene limpia. Los datos "zombis" no contaminan la tabla principal de trabajo, pero
+están a un solo clic de distancia para propósitos de auditoría o futura restauración.
 </div>
 
 ## Fase: Integridad Referencial y Resurrección de Datos (Trazabilidad Fase 2)
 
 ### 🛠️ Backend (Spring Boot)
-* **Mecanismo de Resurrección Atómica:** Implementación de métodos de restauración en `NutricionistaRepository` y `FarmaciaRepository` utilizando consultas nativas.
-* **Resolución del "Síndrome del Zombi":** Se ha diseñado una lógica de restauración en dos pasos (o vía Join) que reactiva simultáneamente la entidad de negocio (`Nutricionista`/`Farmacia`) y su entidad de seguridad asociada (`Usuario`). Esto garantiza que el sistema no sufra de punteros rotos o `EntityNotFoundException` al recargar datos.
-* **Gestión de Vínculos en Cascada:** Refactorización de `FarmaciaService` para realizar una limpieza de la tabla intermedia `nutricionista_farmacia` al ejecutar un borrado lógico. Esto evita que las nutricionistas activas mantengan referencias a farmacias inactiva, eliminando errores de carga en el listado principal.
-* **Robustez en Repositorios:** Introducción de `@Modifying` y `@Transactional` a nivel de query nativa para asegurar que los cambios en el estado `activo` persistan correctamente sin interferencia de la caché de Hibernate.
+
+* **Mecanismo de Resurrección Atómica:** Implementación de métodos de restauración en `NutricionistaRepository` y
+  `FarmaciaRepository` utilizando consultas nativas.
+* **Resolución del "Síndrome del Zombi":** Se ha diseñado una lógica de restauración en dos pasos (o vía Join) que
+  reactiva simultáneamente la entidad de negocio (`Nutricionista`/`Farmacia`) y su entidad de seguridad asociada (
+  `Usuario`). Esto garantiza que el sistema no sufra de punteros rotos o `EntityNotFoundException` al recargar datos.
+* **Gestión de Vínculos en Cascada:** Refactorización de `FarmaciaService` para realizar una limpieza de la tabla
+  intermedia `nutricionista_farmacia` al ejecutar un borrado lógico. Esto evita que las nutricionistas activas mantengan
+  referencias a farmacias inactiva, eliminando errores de carga en el listado principal.
+* **Robustez en Repositorios:** Introducción de `@Modifying` y `@Transactional` a nivel de query nativa para asegurar
+  que los cambios en el estado `activo` persistan correctamente sin interferencia de la caché de Hibernate.
 
 <div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
 <strong>💡 LECCIONES DE ARQUITECTURA SENIOR: EL ALMA Y EL CUERPO 💡</strong><br><br>
 
-<strong>1. Atomicidad en la Restauración:</strong> En sistemas con seguridad desacoplada (Usuario vs. Perfil), la "muerte" y la "resurrección" deben afectar a ambas tablas. Si resucitas el cuerpo (Perfil) pero dejas el alma muerta (Usuario), Hibernate lanzará un error interno al intentar mapear la relación, lo que el frontend interpretará erróneamente como un 404.<br><br>
+<strong>1. Atomicidad en la Restauración:</strong> En sistemas con seguridad desacoplada (Usuario vs. Perfil), la "
+muerte" y la "resurrección" deben afectar a ambas tablas. Si resucitas el cuerpo (Perfil) pero dejas el alma muerta (
+Usuario), Hibernate lanzará un error interno al intentar mapear la relación, lo que el frontend interpretará
+erróneamente como un 404.<br><br>
 
-<strong>2. Limpieza de Vínculos (Clean Sweep):</strong> Al realizar un borrado lógico de una entidad que es "hija" o "parte de una relación" (como una Farmacia en una lista de asignaciones), es obligatorio limpiar las relaciones activas. Mantener un vínculo vivo hacia un objeto inactivo es una bomba de relojería para las consultas JPA que utilizan filtros de exclusión (<code>@SQLRestriction</code>).
+<strong>2. Limpieza de Vínculos (Clean Sweep):</strong> Al realizar un borrado lógico de una entidad que es "hija" o "
+parte de una relación" (como una Farmacia en una lista de asignaciones), es obligatorio limpiar las relaciones activas.
+Mantener un vínculo vivo hacia un objeto inactivo es una bomba de relojería para las consultas JPA que utilizan filtros
+de exclusión (<code>@SQLRestriction</code>).
 </div>
 
 ### 🖥️ Frontend (React)
-* **Funcionalidad de Restauración (Undelete):** Integración del botón de acción `handleRestaurar` en los cementerios de Administración.
-* **Sincronización de Estado:** Implementación de recarga forzada tras la restauración para mover registros del cementerio a la lista operativa en tiempo real.
-* **Iconografía de Trazabilidad:** Uso de `RefreshCw` para diferenciar claramente las acciones de recuperación de las de creación.
+
+* **Funcionalidad de Restauración (Undelete):** Integración del botón de acción `handleRestaurar` en los cementerios de
+  Administración.
+* **Sincronización de Estado:** Implementación de recarga forzada tras la restauración para mover registros del
+  cementerio a la lista operativa en tiempo real.
+* **Iconografía de Trazabilidad:** Uso de `RefreshCw` para diferenciar claramente las acciones de recuperación de las de
+  creación.
 
 ### 📅 Próximos Pasos (Hoja de Ruta)
-* **Cierre de Simetría:** Aplicar el sistema de borrado lógico y cementerio a las secciones de **Productos** y **Administradores** restantes.
-* **Gestión de Restricciones Únicas:** Implementar lógica para manejar conflictos de DNI, CIF o Email cuando un nuevo registro intenta usar datos de un registro que está en el "cementerio".
-* **Trazabilidad Profunda:** Añadir metadatos de auditoría (`borrado_por`, `fecha_baja`) para mostrar quién y cuándo ejecutó las acciones de baja.
-* **Módulo de Resurrección Avanzada:** Habilitar la edición de campos críticos durante el proceso de restauración para actualizar contratos o condiciones comerciales.
+
+* **Cierre de Simetría:** Aplicar el sistema de borrado lógico y cementerio a las secciones de **Productos** y *
+  *Administradores** restantes.
+* **Gestión de Restricciones Únicas:** Implementar lógica para manejar conflictos de DNI, CIF o Email cuando un nuevo
+  registro intenta usar datos de un registro que está en el "cementerio".
+* **Trazabilidad Profunda:** Añadir metadatos de auditoría (`borrado_por`, `fecha_baja`) para mostrar quién y cuándo
+  ejecutó las acciones de baja.
+* **Módulo de Resurrección Avanzada:** Habilitar la edición de campos críticos durante el proceso de restauración para
+  actualizar contratos o condiciones comerciales.
 
 ## [25/03/2026] Fase: Single Source of Truth y Reglas de Negocio (Trazabilidad Fase 3)
 
 ### 🛠️ Backend (Spring Boot)
-* **radares Anti-Zombis (Native Queries):** Creación de métodos `findBy...IgnorandoBajas` en los repositorios (`Usuario`, `Nutricionista`, `Farmacia`, `Producto`) utilizando consultas nativas puras para saltar la restricción global de Hibernate (`@SQLRestriction`).
-* **Blindaje de Identidades Únicas:** Refactorización de las capas de Servicio para interceptar la creación de registros duplicados (Email, DNI, CIF, Referencia).
-* **Prevención de Excepciones Fatales:** Al interceptar la duplicidad en la capa de negocio, evitamos que la base de datos lance un `DataIntegrityViolationException`, lo cual causaba errores 500/404 no controlados en el Frontend.
-* **Nomenclatura Corporativa:** Transición del concepto visual de "Cementerio" a "Archivo Histórico" / "Productos Descatalogados" para mantener coherencia semántica.
+
+* **radares Anti-Zombis (Native Queries):** Creación de métodos `findBy...IgnorandoBajas` en los repositorios (
+  `Usuario`, `Nutricionista`, `Farmacia`, `Producto`) utilizando consultas nativas puras para saltar la restricción
+  global de Hibernate (`@SQLRestriction`).
+* **Blindaje de Identidades Únicas:** Refactorización de las capas de Servicio para interceptar la creación de registros
+  duplicados (Email, DNI, CIF, Referencia).
+* **Prevención de Excepciones Fatales:** Al interceptar la duplicidad en la capa de negocio, evitamos que la base de
+  datos lance un `DataIntegrityViolationException`, lo cual causaba errores 500/404 no controlados en el Frontend.
+* **Nomenclatura Corporativa:** Transición del concepto visual de "Cementerio" a "Archivo Histórico" / "Productos
+  Descatalogados" para mantener coherencia semántica.
 
 <div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
 <strong>💡 LECCIONES DE ARQUITECTURA SENIOR: SINGLE SOURCE OF TRUTH 💡</strong><br><br>
 
-<strong>1. La trampa del Soft Delete:</strong> Ocultar registros inactivos con <code>@SQLRestriction</code> es útil para listados, pero es peligroso para las validaciones. Si el sistema ignora a los inactivos al validar IDs únicos (como un DNI), la base de datos colapsará al intentar insertar un duplicado físico.<br><br>
+<strong>1. La trampa del Soft Delete:</strong> Ocultar registros inactivos con <code>@SQLRestriction</code> es útil para
+listados, pero es peligroso para las validaciones. Si el sistema ignora a los inactivos al validar IDs únicos (como un
+DNI), la base de datos colapsará al intentar insertar un duplicado físico.<br><br>
 
-<strong>2. Lógica de Negocio vs Restricciones de BD:</strong> Las restricciones de Base de Datos (<code>UNIQUE</code>) son la última línea de defensa, el muro final. Sin embargo, depender de ellas para la validación devuelve errores genéricos (500/404). Un buen diseño Enterprise intercepta el problema en la Capa de Servicio, traduciéndolo en una excepción de negocio (<code>IllegalArgumentException</code>) que el Frontend pueda mostrar como un mensaje útil al usuario ("Este registro está descatalogado, restáurelo").<br><br>
+<strong>2. Lógica de Negocio vs Restricciones de BD:</strong> Las restricciones de Base de Datos (<code>UNIQUE</code>)
+son la última línea de defensa, el muro final. Sin embargo, depender de ellas para la validación devuelve errores
+genéricos (500/404). Un buen diseño Enterprise intercepta el problema en la Capa de Servicio, traduciéndolo en una
+excepción de negocio (<code>IllegalArgumentException</code>) que el Frontend pueda mostrar como un mensaje útil al
+usuario ("Este registro está descatalogado, restáurelo").<br><br>
 
-<strong>3. Inmutabilidad de la Identidad:</strong> No se modifica la estructura de la base de datos para permitir DNI duplicados. Una entidad del mundo real (una persona o un producto físico) equivale a una única fila inmutable. Si la entidad regresa, se restaura su fila original, manteniendo intacto su historial (Single Source of Truth).
+<strong>3. Inmutabilidad de la Identidad:</strong> No se modifica la estructura de la base de datos para permitir DNI
+duplicados. Una entidad del mundo real (una persona o un producto físico) equivale a una única fila inmutable. Si la
+entidad regresa, se restaura su fila original, manteniendo intacto su historial (Single Source of Truth).
 </div>
 
 ## Fase: Auditoría de Datos y Control de Trazabilidad (Fase 4)
 
 ### 🛠️ Backend (Spring Boot)
-* **Metadatos de Auditoría:** Inyección de los campos `fecha_baja` y `borrado_por` en las entidades del negocio (`Producto`, `Nutricionista`, `Farmacia`).
-* **Interceptación del Usuario:** Uso de `SecurityContextHolder` en la capa de Servicio para extraer el email del usuario autenticado en tiempo real mediante el token JWT.
-* **Transición de Soft Delete:** Eliminación de la anotación estática `@SQLDelete` en favor de un guardado manual (`repository.save()`) con el estado modificado. Esto permite inyectar dinámicamente los datos de auditoría antes de la persistencia.
-* **Limpieza de Expediente:** Modificación de las consultas nativas de resurrección (`reactivar...`) para incluir `fecha_baja = NULL` y `borrado_por = NULL`, reseteando el historial del registro al volver a la vida operativa.
+
+* **Metadatos de Auditoría:** Inyección de los campos `fecha_baja` y `borrado_por` en las entidades del negocio (
+  `Producto`, `Nutricionista`, `Farmacia`).
+* **Interceptación del Usuario:** Uso de `SecurityContextHolder` en la capa de Servicio para extraer el email del
+  usuario autenticado en tiempo real mediante el token JWT.
+* **Transición de Soft Delete:** Eliminación de la anotación estática `@SQLDelete` en favor de un guardado manual (
+  `repository.save()`) con el estado modificado. Esto permite inyectar dinámicamente los datos de auditoría antes de la
+  persistencia.
+* **Limpieza de Expediente:** Modificación de las consultas nativas de resurrección (`reactivar...`) para incluir
+  `fecha_baja = NULL` y `borrado_por = NULL`, reseteando el historial del registro al volver a la vida operativa.
 
 ### 🖥️ Frontend (React)
-* **Badges de Auditoría:** Implementación de etiquetas visuales en el Archivo Histórico para mostrar al instante quién ejecutó la acción de borrado y en qué fecha (`new Date().toLocaleDateString()`).
+
+* **Badges de Auditoría:** Implementación de etiquetas visuales en el Archivo Histórico para mostrar al instante quién
+  ejecutó la acción de borrado y en qué fecha (`new Date().toLocaleDateString()`).
 
 <div style="background-color: #e6f7ff; color: #0050b3; padding: 15px; border-left: 5px solid #1890ff; border-radius: 5px; margin: 20px 0;">
 <strong>💡 LECCIONES DE ARQUITECTURA SENIOR: AUDITORÍA ESTÁTICA VS DINÁMICA 💡</strong><br><br>
 
-<strong>1. Los límites de @SQLDelete:</strong> Las anotaciones de Hibernate son cómodas, pero estáticas. Si necesitas registrar <em>quién</em> y <em>cuándo</em> se borró algo, <code>@SQLDelete</code> se queda corto porque no puede recibir variables dinámicas del contexto de seguridad. Es necesario pasar a un control manual en la capa de Servicio.<br><br>
+<strong>1. Los límites de @SQLDelete:</strong> Las anotaciones de Hibernate son cómodas, pero estáticas. Si necesitas
+registrar <em>quién</em> y <em>cuándo</em> se borró algo, <code>@SQLDelete</code> se queda corto porque no puede recibir
+variables dinámicas del contexto de seguridad. Es necesario pasar a un control manual en la capa de Servicio.<br><br>
 
-<strong>2. Seguridad sin fricción:</strong> Gracias a la arquitectura Stateless con JWT, no necesitamos pasar el ID del usuario desde React en cada petición de borrado (lo cual sería vulnerable a manipulaciones). El Backend lee la identidad firmada e inmutable directamente del token a través del <code>SecurityContextHolder</code>.
+<strong>2. Seguridad sin fricción:</strong> Gracias a la arquitectura Stateless con JWT, no necesitamos pasar el ID del
+usuario desde React en cada petición de borrado (lo cual sería vulnerable a manipulaciones). El Backend lee la identidad
+firmada e inmutable directamente del token a través del <code>SecurityContextHolder</code>.
 </div>
-
 
 ## Fase: Lógica Comercial B2B, Resiliencia y Pedidos Proxy
 
 ### 🛠️ Backend (Spring Boot)
-* **Gestión de Stock Dinámico:** Implementado endpoint `PATCH` para alternar la disponibilidad de un producto (`hay_existencias`) sin necesidad de descatalogarlo.
-* **Rediseño del Manejador de Excepciones:** Destrucción del "agujero negro" de excepciones. Mapeo explícito de `AccessDeniedException` (403), `IllegalArgumentException` (400) y `RuntimeException` (500) para un debugeo transparente.
-* **Auditoría B2B (Pedidos Proxy):** Sustitución del flag booleano `creadoPorAdmin` por el campo `creado_por` (String) en la entidad `Pedido`, inyectando automáticamente el email del creador (Admin, Farmacia o Nutricionista) desde el token JWT.
-* **Integridad Referencial en Soft Deletes (Escudo Anti-500):** Aplicación de la anotación `@NotFound(action = NotFoundAction.IGNORE)` en las relaciones de `Pedido`, `LineaPedido` y `RepartoPedido`. Permite cargar el historial de ventas intacto aunque los productos, farmacias o nutricionistas hayan sido descatalogados.
-* **Regla de Negocio (Bloqueo de Borrado):** Implementada validación en `ProductoService` que impide descatalogar un producto si existen pedidos en estado `PENDIENTE_ENVIO` que lo contengan.
+
+* **Gestión de Stock Dinámico:** Implementado endpoint `PATCH` para alternar la disponibilidad de un producto (
+  `hay_existencias`) sin necesidad de descatalogarlo.
+* **Rediseño del Manejador de Excepciones:** Destrucción del "agujero negro" de excepciones. Mapeo explícito de
+  `AccessDeniedException` (403), `IllegalArgumentException` (400) y `RuntimeException` (500) para un debugeo
+  transparente.
+* **Auditoría B2B (Pedidos Proxy):** Sustitución del flag booleano `creadoPorAdmin` por el campo `creado_por` (String)
+  en la entidad `Pedido`, inyectando automáticamente el email del creador (Admin, Farmacia o Nutricionista) desde el
+  token JWT.
+* **Integridad Referencial en Soft Deletes (Escudo Anti-500):** Aplicación de la anotación
+  `@NotFound(action = NotFoundAction.IGNORE)` en las relaciones de `Pedido`, `LineaPedido` y `RepartoPedido`. Permite
+  cargar el historial de ventas intacto aunque los productos, farmacias o nutricionistas hayan sido descatalogados.
+* **Regla de Negocio (Bloqueo de Borrado):** Implementada validación en `ProductoService` que impide descatalogar un
+  producto si existen pedidos en estado `PENDIENTE_ENVIO` que lo contengan.
 
 ### 🖥️ Frontend (React)
-* **Escudo de Promesas (Resiliencia UI):** Blindaje de los `Promise.all` en los Dashboards de Resumen utilizando `.catch(() => null)`. Evita la temida "pantalla en blanco" cuando un usuario intenta cargar widgets para los que no tiene permisos (403).
-* **UI de Pedidos Proxy:** Adaptación de `VistaPedidos` para que los administradores puedan actuar como teleoperadores, seleccionando cualquier farmacia destino y generando pedidos en su nombre.
-* **Motor de Precios Dinámico en Front:** El catálogo ajusta automáticamente la visualización de PVF o PVP dependiendo de la propiedad `esProvinciaLocal` de la farmacia destino seleccionada.
-* **Limpieza del Virtual DOM:** Corrección del renderizado del menú lateral en `Dashboard.jsx` para evitar colisiones de `keys` en usuarios con roles múltiples.
 
+* **Escudo de Promesas (Resiliencia UI):** Blindaje de los `Promise.all` en los Dashboards de Resumen utilizando
+  `.catch(() => null)`. Evita la temida "pantalla en blanco" cuando un usuario intenta cargar widgets para los que no
+  tiene permisos (403).
+* **UI de Pedidos Proxy:** Adaptación de `VistaPedidos` para que los administradores puedan actuar como teleoperadores,
+  seleccionando cualquier farmacia destino y generando pedidos en su nombre.
+* **Motor de Precios Dinámico en Front:** El catálogo ajusta automáticamente la visualización de PVF o PVP dependiendo
+  de la propiedad `esProvinciaLocal` de la farmacia destino seleccionada.
+* **Limpieza del Virtual DOM:** Corrección del renderizado del menú lateral en `Dashboard.jsx` para evitar colisiones de
+  `keys` en usuarios con roles múltiples.
 
 ### [26/03/2026]
 
 #### 🖥️ Frontend (React)
 
-* **Adopción de Feature-Sliced Design (FSD):** Refactorización masiva de las vistas monolíticas hacia una Arquitectura basada en Funcionalidades. Separación estricta de responsabilidades dividiendo el código en hooks (Cerebro/Lógica de negocio), components (Órganos visuales) y views (Orquestadores).
-* **Dominio de Administración:** Renombrado estratégico del módulo `entidades` a `administracion` para reflejar con precisión el contexto de negocio. Desacoplamiento total del Centro de Mando (`VistaPersonalInterno`).
-* **Módulo de Pedidos y Finanzas:** Extracción de la compleja lógica de carrito, monedero virtual, bonificaciones y "Modo Proxy" hacia el hook `usePedidos.js`. Fragmentación de la UI en componentes aislados (`TarjetaMonedero`, `CatalogoProductos`, `CestaPedidos`).
-* **Dashboards y Analytics:** Refactorización profunda de los tres paneles principales (`VistaResumen`, `VistaResumenAdmin`, `VistaResumenFarmacia`). Resolución de advertencias de renderizado en gráficos de Recharts (`ResponsiveContainer`) asegurando contenedores con altura fija.
-* **Protección de Renderizado Asíncrono:** Implementación de encadenamiento opcional (`?.map`) y fallback de arrays vacíos (`|| []`) en historiales y listas para evitar caídas de la aplicación (crashes) durante la resolución de promesas en perfiles complejos como el Nutricionista.
-* **Módulos de Soporte (Auth, Docs, Suministros):** Limpieza de las vistas de inicio de sesión (`Login`, `ResetPassword`), subida de archivos (`VistaDocumentacion`) y peticiones de material (`VistaSuministros`), delegando el control de formularios y tokens a hooks dedicados.
-* **Desacoplamiento del Layout Principal:** Limpieza extrema de `Dashboard.jsx`, externalizando la lógica de roles, el menú lateral (`Sidebar.jsx`) y el estado de la navegación, convirtiéndolo en un enrutador puro.
+* **Adopción de Feature-Sliced Design (FSD):** Refactorización masiva de las vistas monolíticas hacia una Arquitectura
+  basada en Funcionalidades. Separación estricta de responsabilidades dividiendo el código en hooks (Cerebro/Lógica de
+  negocio), components (Órganos visuales) y views (Orquestadores).
+* **Dominio de Administración:** Renombrado estratégico del módulo `entidades` a `administracion` para reflejar con
+  precisión el contexto de negocio. Desacoplamiento total del Centro de Mando (`VistaPersonalInterno`).
+* **Módulo de Pedidos y Finanzas:** Extracción de la compleja lógica de carrito, monedero virtual, bonificaciones y "
+  Modo Proxy" hacia el hook `usePedidos.js`. Fragmentación de la UI en componentes aislados (`TarjetaMonedero`,
+  `CatalogoProductos`, `CestaPedidos`).
+* **Dashboards y Analytics:** Refactorización profunda de los tres paneles principales (`VistaResumen`,
+  `VistaResumenAdmin`, `VistaResumenFarmacia`). Resolución de advertencias de renderizado en gráficos de Recharts (
+  `ResponsiveContainer`) asegurando contenedores con altura fija.
+* **Protección de Renderizado Asíncrono:** Implementación de encadenamiento opcional (`?.map`) y fallback de arrays
+  vacíos (`|| []`) en historiales y listas para evitar caídas de la aplicación (crashes) durante la resolución de
+  promesas en perfiles complejos como el Nutricionista.
+* **Módulos de Soporte (Auth, Docs, Suministros):** Limpieza de las vistas de inicio de sesión (`Login`,
+  `ResetPassword`), subida de archivos (`VistaDocumentacion`) y peticiones de material (`VistaSuministros`), delegando
+  el control de formularios y tokens a hooks dedicados.
+* **Desacoplamiento del Layout Principal:** Limpieza extrema de `Dashboard.jsx`, externalizando la lógica de roles, el
+  menú lateral (`Sidebar.jsx`) y el estado de la navegación, convirtiéndolo en un enrutador puro.
 
 ## [27/03/2026] - Arquitectura de Identidad: El Caso de Paco (Admin + Nutricionista)
 
 ### 🧑‍💼 Contexto y Decisión
 
-Paco, dueño de la empresa, necesita operar en el sistema con dos contextos completamente distintos: como **Administrador** (gestión del negocio) y como **Nutricionista** (trabajo clínico diario). Se evaluaron dos opciones:
+Paco, dueño de la empresa, necesita operar en el sistema con dos contextos completamente distintos: como **Administrador
+** (gestión del negocio) y como **Nutricionista** (trabajo clínico diario). Se evaluaron dos opciones:
 
 1. Un único usuario con selector de rol al login + botón de cambio de rol en sesión activa.
 2. Dos cuentas separadas, una por contexto.
@@ -866,6 +992,7 @@ Paco, dueño de la empresa, necesita operar en el sistema con dos contextos comp
 ---
 
 ### 🏗️ Estructura de Datos Resultante
+
 ```
 usuarios
 ├── paco.admin@nutripharma.com   → ROLE_ADMIN
@@ -874,7 +1001,9 @@ usuarios
       └── tabla `nutricionistas` (relación @OneToOne con Usuario)
 ```
 
-La cuenta administrativa de Paco es intencionalmente un "fantasma de negocio": existe en la tabla `usuarios` para autenticarse, pero no tiene perfil operativo. Esto es exactamente el mismo patrón que ya aplicamos con el SuperAdmin de Nacho.
+La cuenta administrativa de Paco es intencionalmente un "fantasma de negocio": existe en la tabla `usuarios` para
+autenticarse, pero no tiene perfil operativo. Esto es exactamente el mismo patrón que ya aplicamos con el SuperAdmin de
+Nacho.
 
 ---
 
@@ -882,9 +1011,12 @@ La cuenta administrativa de Paco es intencionalmente un "fantasma de negocio": e
 
 La opción del modal ("¿Entras como Admin o como Nutricionista?") es un **antipatrón** por varias razones:
 
-* **Complejidad técnica encubierta:** Cambiar de rol en mitad de una sesión activa implica reemplazar el JWT, limpiar todo el estado de React y redirigir al usuario. Técnicamente es un logout/login disfrazado de botón.
-* **Fuente de confusión para el usuario:** Obliga a Paco a tomar una decisión activa cada vez que se loguea. Si se equivoca de rol, tiene que salir y volver a entrar. Para alguien ajeno a la programación, eso es fricción innecesaria.
-* **Auditoría ambigua:** Los logs de acceso no pueden distinguir en qué contexto actuó Paco. Una única sesión birol registra "Paco hizo algo", pero no si actuó como gestor o como clínico.
+* **Complejidad técnica encubierta:** Cambiar de rol en mitad de una sesión activa implica reemplazar el JWT, limpiar
+  todo el estado de React y redirigir al usuario. Técnicamente es un logout/login disfrazado de botón.
+* **Fuente de confusión para el usuario:** Obliga a Paco a tomar una decisión activa cada vez que se loguea. Si se
+  equivoca de rol, tiene que salir y volver a entrar. Para alguien ajeno a la programación, eso es fricción innecesaria.
+* **Auditoría ambigua:** Los logs de acceso no pueden distinguir en qué contexto actuó Paco. Una única sesión birol
+  registra "Paco hizo algo", pero no si actuó como gestor o como clínico.
 
 ---
 
@@ -892,9 +1024,12 @@ La opción del modal ("¿Entras como Admin o como Nutricionista?") es un **antip
 
 #### 1. Seguridad — Principio de Mínimo Privilegio (Least Privilege)
 
-Un token JWT tiene un alcance fijo e inamovible durante su vida útil. Si Paco está logueado como Nutricionista y alguien compromete su sesión, el atacante solo accede a datos clínicos. No puede tocar configuración del sistema, saldos ni gestión de usuarios. Con el modal de cambio de rol, un token comprometido potencialmente da acceso a todo el sistema.
+Un token JWT tiene un alcance fijo e inamovible durante su vida útil. Si Paco está logueado como Nutricionista y alguien
+compromete su sesión, el atacante solo accede a datos clínicos. No puede tocar configuración del sistema, saldos ni
+gestión de usuarios. Con el modal de cambio de rol, un token comprometido potencialmente da acceso a todo el sistema.
 
-Este principio está recogido en los frameworks de seguridad enterprise más importantes: **ISO 27001**, **NIST** y las guías de auditoría de sistemas ERP como SAP, Oracle EBS y Microsoft Dynamics.
+Este principio está recogido en los frameworks de seguridad enterprise más importantes: **ISO 27001**, **NIST** y las
+guías de auditoría de sistemas ERP como SAP, Oracle EBS y Microsoft Dynamics.
 
 #### 2. User-Friendly — El Hábito vs. La Decisión
 
@@ -907,104 +1042,275 @@ Un hábito no requiere pensar. Una decisión en un modal, sí.
 
 #### 3. Buenas Prácticas — Identity Segregation en Sistemas ERP
 
-El término técnico exacto para esta práctica es **Identity Segregation**, derivado del principio de **Separation of Concerns (SoC)** aplicado a la capa de identidad. Es un estándar en todos los sistemas ERP enterprise.
+El término técnico exacto para esta práctica es **Identity Segregation**, derivado del principio de **Separation of
+Concerns (SoC)** aplicado a la capa de identidad. Es un estándar en todos los sistemas ERP enterprise.
 
-En SAP, por ejemplo, el administrador técnico del sistema (BASIS) tiene una cuenta técnica completamente separada de su cuenta funcional de negocio, aunque sea la misma persona física. **Nacho es el BASIS de NutriPharma. Paco es el usuario funcional.**
+En SAP, por ejemplo, el administrador técnico del sistema (BASIS) tiene una cuenta técnica completamente separada de su
+cuenta funcional de negocio, aunque sea la misma persona física. **Nacho es el BASIS de NutriPharma. Paco es el usuario
+funcional.**
 
 #### 4. Trazabilidad y Auditoría
 
-Cuando se revisen los logs en producción (ahora o dentro de dos años), cada acción queda firmada con una identidad inequívoca y su contexto es inmediato:
+Cuando se revisen los logs en producción (ahora o dentro de dos años), cada acción queda firmada con una identidad
+inequívoca y su contexto es inmediato:
 
 * `paco.admin@` en los logs → acción de gestión empresarial.
 * `paco@` en los logs → consulta clínica registrada.
 
-Esto es especialmente crítico en sistemas que manejan datos financieros y sanitarios, donde una auditoría puede exigir reconstruir exactamente qué decisión tomó quién y bajo qué rol.
+Esto es especialmente crítico en sistemas que manejan datos financieros y sanitarios, donde una auditoría puede exigir
+reconstruir exactamente qué decisión tomó quién y bajo qué rol.
 
 ---
 
 ### 💡 Lección de Arquitectura
 
-> La complejidad que no se justifica con un requisito real es deuda técnica. El modal de selección de rol hubiera añadido código nuevo, estado adicional en React, lógica de reemplazo de JWT y surface de ataque extra, todo para resolver un problema que dos cuentas resuelven sin escribir una sola línea. En ingeniería de software, la mejor solución suele ser la que aprovecha lo que ya existe.
+> La complejidad que no se justifica con un requisito real es deuda técnica. El modal de selección de rol hubiera
+> añadido código nuevo, estado adicional en React, lógica de reemplazo de JWT y surface de ataque extra, todo para
+> resolver un problema que dos cuentas resuelven sin escribir una sola línea. En ingeniería de software, la mejor solución
+> suele ser la que aprovecha lo que ya existe.
 
 ### [27/03/2026] - Arquitectura de Datos: Derecho al Olvido, Trazabilidad y Ciberseguridad en Producción
 
 #### 🛡️ El Dilema del Borrado en Bases de Datos
-En sistemas empresariales (ERPs, aplicaciones clínicas y financieras), borrar un registro físicamente (`DELETE` en SQL) rompe la integridad referencial. Si se elimina a un nutricionista, los pedidos o consultas históricas asociados a él quedan huérfanos o corrompen los cálculos financieros de años anteriores.
+
+En sistemas empresariales (ERPs, aplicaciones clínicas y financieras), borrar un registro físicamente (`DELETE` en SQL)
+rompe la integridad referencial. Si se elimina a un nutricionista, los pedidos o consultas históricas asociados a él
+quedan huérfanos o corrompen los cálculos financieros de años anteriores.
+
 * **Solución operativa:** Borrado Lógico (*Soft Delete*), marcando el registro como `activo = false`.
-* **El problema legal:** El *Soft Delete* choca frontalmente con el Reglamento General de Protección de Datos (RGPD) y el "Derecho al Olvido", ya que los datos personales (nombre, DNI, email) siguen intactos en la base de datos, aunque estén ocultos en la interfaz.
+* **El problema legal:** El *Soft Delete* choca frontalmente con el Reglamento General de Protección de Datos (RGPD) y
+  el "Derecho al Olvido", ya que los datos personales (nombre, DNI, email) siguen intactos en la base de datos, aunque
+  estén ocultos en la interfaz.
 
 #### ✅ La Decisión Arquitectónica: Anonimización (Seudonimización)
-Para cumplir con la ley y mantener la integridad financiera del sistema simultáneamente, no se borra la fila, se **anonimiza**.
+
+Para cumplir con la ley y mantener la integridad financiera del sistema simultáneamente, no se borra la fila, se *
+*anonimiza**.
+
 * Se conserva el `id` original (los pedidos y facturas históricas siguen cuadrando perfectamente).
 * Se sobrescriben los datos sensibles con valores ficticios o hashes unidireccionales:
-  * Nombre → "Usuario Eliminado"
-  * Email → `deleted_hash123@nutripharma.local`
-  * DNI → `00000000A`
+    * Nombre → "Usuario Eliminado"
+    * Email → `deleted_hash123@nutripharma.local`
+    * DNI → `00000000A`
 
 De esta forma, la persona física desaparece a efectos legales, pero la entidad operativa perdura a efectos de auditoría.
 
 #### ❌ La Regla de Oro: Prohibido ejecutar lógica de negocio desde el gestor SQL
-La aplicación del "Derecho al Olvido" (o cualquier modificación crítica de datos de negocio) jamás debe hacerse ejecutando sentencias manuales (`UPDATE` o `DELETE`) directamente en la base de datos de producción por un administrador.
 
+La aplicación del "Derecho al Olvido" (o cualquier modificación crítica de datos de negocio) jamás debe hacerse
+ejecutando sentencias manuales (`UPDATE` o `DELETE`) directamente en la base de datos de producción por un
+administrador.
 
 **¿Por qué todo debe pasar por el Backend (Capa de Aplicación)?**
-* **Lógica en Cascada:** Al invocar un endpoint (`/api/usuarios/{id}/anonimizar`), el backend no solo actualiza la base de datos, sino que orquesta acciones periféricas críticas: eliminar archivos personales en Google Drive, invalidar tokens JWT activos, y enviar correos legales de confirmación de borrado.
-* **Trazabilidad Inmutable:** La aplicación escribe en los logs y en tablas de auditoría exactamente *quién* pulsó el botón y *cuándo*, dejando un rastro criptográfico legal. Si se hace por SQL, se puentea toda la seguridad y no hay registro auditable de la operación.
+
+* **Lógica en Cascada:** Al invocar un endpoint (`/api/usuarios/{id}/anonimizar`), el backend no solo actualiza la base
+  de datos, sino que orquesta acciones periféricas críticas: eliminar archivos personales en Google Drive, invalidar
+  tokens JWT activos, y enviar correos legales de confirmación de borrado.
+* **Trazabilidad Inmutable:** La aplicación escribe en los logs y en tablas de auditoría exactamente *quién* pulsó el
+  botón y *cuándo*, dejando un rastro criptográfico legal. Si se hace por SQL, se puentea toda la seguridad y no hay
+  registro auditable de la operación.
 
 #### 🔐 Arquitectura de Despliegue y Ciberseguridad (Zero Trust)
-Para llevar el sistema a producción bajo estándares *enterprise*, la base de datos se blinda siguiendo el Principio de Mínimo Privilegio (*Least Privilege*):
 
-1. **Aislamiento de Red (Private Subnet):** La base de datos no tiene salida ni entrada a Internet. No se puede acceder a ella desde el exterior con clientes SQL (como DBeaver o DataGrip).
-2. **El Backend es el único VIP:** La única máquina autorizada a nivel de red para hablar con el puerto SQL es el servidor donde se ejecuta la API en Java. Las credenciales que usa la API solo tienen permisos de lectura/escritura de datos (DML), nunca permisos estructurales (`DROP TABLE`, `ALTER`).
-3. **Protocolo "Break Glass" (Romper el cristal):** Si ocurre un desastre y un ingeniero necesita entrar al SQL manualmente para arreglar datos corrompidos, no usa una contraseña estática.
-  * Se conecta vía VPN a un servidor puente aislado (*Bastion Host*).
-  * Solicita credenciales temporales (*Just-In-Time Access*) que caducan automáticamente en 2 horas.
-  * Todas sus consultas quedan grabadas para auditoría.
+Para llevar el sistema a producción bajo estándares *enterprise*, la base de datos se blinda siguiendo el Principio de
+Mínimo Privilegio (*Least Privilege*):
 
-**Conclusión:** La base de datos es "muda y tonta"; solo almacena lo que la aplicación (que es inteligente y auditable) le ordena guardar.
+1. **Aislamiento de Red (Private Subnet):** La base de datos no tiene salida ni entrada a Internet. No se puede acceder
+   a ella desde el exterior con clientes SQL (como DBeaver o DataGrip).
+2. **El Backend es el único VIP:** La única máquina autorizada a nivel de red para hablar con el puerto SQL es el
+   servidor donde se ejecuta la API en Java. Las credenciales que usa la API solo tienen permisos de lectura/escritura
+   de datos (DML), nunca permisos estructurales (`DROP TABLE`, `ALTER`).
+3. **Protocolo "Break Glass" (Romper el cristal):** Si ocurre un desastre y un ingeniero necesita entrar al SQL
+   manualmente para arreglar datos corrompidos, no usa una contraseña estática.
+
+* Se conecta vía VPN a un servidor puente aislado (*Bastion Host*).
+* Solicita credenciales temporales (*Just-In-Time Access*) que caducan automáticamente en 2 horas.
+* Todas sus consultas quedan grabadas para auditoría.
+
+**Conclusión:** La base de datos es "muda y tonta"; solo almacena lo que la aplicación (que es inteligente y auditable)
+le ordena guardar.
 
 ### [27/03/2026] - Refinamiento de Datos, UX y Definición de Arquitectura Anti-Fraude
 
 #### 🧠 Decisiones de Negocio y Compliance
-* **Derecho al Olvido vs Interés Legítimo:** Se determinó que, al operar en un entorno B2B, las Farmacias no están sujetas al derecho al olvido (son entidades jurídicas). Los teléfonos y correos de las nutricionistas se consideran herramientas corporativas, por lo que prima el Interés Legítimo de la empresa para conservar la trazabilidad de operaciones frente a posibles auditorías o disputas legales.
-* **Minimización de Datos:** Se eliminó el campo `DNI` de toda la arquitectura (Backend y Frontend), sustituyéndolo por `teléfono` corporativo (no único). Esto reduce el "surface area" de datos sensibles que la aplicación almacena, mitigando riesgos de ciberseguridad.
+
+* **Derecho al Olvido vs Interés Legítimo:** Se determinó que, al operar en un entorno B2B, las Farmacias no están
+  sujetas al derecho al olvido (son entidades jurídicas). Los teléfonos y correos de las nutricionistas se consideran
+  herramientas corporativas, por lo que prima el Interés Legítimo de la empresa para conservar la trazabilidad de
+  operaciones frente a posibles auditorías o disputas legales.
+* **Minimización de Datos:** Se eliminó el campo `DNI` de toda la arquitectura (Backend y Frontend), sustituyéndolo por
+  `teléfono` corporativo (no único). Esto reduce el "surface area" de datos sensibles que la aplicación almacena,
+  mitigando riesgos de ciberseguridad.
 
 #### 🖥️ Mejoras UX en Administración (React)
-* **Visualización de Relaciones (N:M):** Implementación de un Modal de vista rápida (`ModalVerAsignaciones.jsx`) para consultar las farmacias asignadas a una nutricionista (y viceversa) sin necesidad de entrar al modo edición, reduciendo la fricción cognitiva del Administrador.
-* **Ordenación Inteligente (Smart Sorting):** En el modal de edición, las farmacias que ya están asignadas a la nutricionista "flotan" automáticamente a la parte superior de la lista, evitando el scroll innecesario.
-* **Badges y Microinteracciones:** Inclusión de etiquetas visuales rápidas (horas de contrato, porcentaje de comisión) en el listado general y sustitución del botón de stock por un interruptor (Switch estilo iOS) para mayor claridad del estado binario del producto.
+
+* **Visualización de Relaciones (N:M):** Implementación de un Modal de vista rápida (`ModalVerAsignaciones.jsx`) para
+  consultar las farmacias asignadas a una nutricionista (y viceversa) sin necesidad de entrar al modo edición,
+  reduciendo la fricción cognitiva del Administrador.
+* **Ordenación Inteligente (Smart Sorting):** En el modal de edición, las farmacias que ya están asignadas a la
+  nutricionista "flotan" automáticamente a la parte superior de la lista, evitando el scroll innecesario.
+* **Badges y Microinteracciones:** Inclusión de etiquetas visuales rápidas (horas de contrato, porcentaje de comisión)
+  en el listado general y sustitución del botón de stock por un interruptor (Switch estilo iOS) para mayor claridad del
+  estado binario del producto.
 
 #### 🏗️ Roadmap Técnico Definido (Alta Integridad)
+
 Se validó la arquitectura para las siguientes fases críticas del proyecto:
-1. **Pruebas Periciales (Evidencias):** Vinculación de fotos de agendas físicas directamente a la entidad `Consulta` mediante una máquina de estados estricta.
-2. **Notificaciones (Event-Driven):** Uso de eventos asíncronos en Spring Boot para confirmar pedidos y consultas sin bloquear el hilo principal.
-3. **Auditoría Inmutable:** Implementación futura de **Hibernate Envers** para registrar cada `INSERT`, `UPDATE` y `DELETE`, garantizando trazabilidad absoluta ante posibles juicios por fraude.
+
+1. **Pruebas Periciales (Evidencias):** Vinculación de fotos de agendas físicas directamente a la entidad `Consulta`
+   mediante una máquina de estados estricta.
+2. **Notificaciones (Event-Driven):** Uso de eventos asíncronos en Spring Boot para confirmar pedidos y consultas sin
+   bloquear el hilo principal.
+3. **Auditoría Inmutable:** Implementación futura de **Hibernate Envers** para registrar cada `INSERT`, `UPDATE` y
+   `DELETE`, garantizando trazabilidad absoluta ante posibles juicios por fraude.
 4. **Registro de Accesos:** Interceptores de seguridad para guardar la IP y el User-Agent de cada login y petición API.
 
 ## [07/04/2026] 📸 Sistema de Evidencias Fotográficas ("Prueba de Vida")
 
 ### Integración Cloud Segura
-Implementación de subida/descarga de archivos binarios (`multipart/form-data`) conectados directamente a la API de Google Drive desde Spring Boot, aislando el almacenamiento pesado de la base de datos principal.
+
+Implementación de subida/descarga de archivos binarios (`multipart/form-data`) conectados directamente a la API de
+Google Drive desde Spring Boot, aislando el almacenamiento pesado de la base de datos principal.
 
 ### Mutabilidad por Estados (Smart Lock)
-Creación de una máquina de estados para la interfaz. El nutricionista tiene libertad para adjuntar, visualizar (mediante previsualizaciones generadas en memoria RAM con `URL.createObjectURL`) y sustituir la foto libremente mientras la consulta esté en `BORRADOR`.
+
+Creación de una máquina de estados para la interfaz. El nutricionista tiene libertad para adjuntar, visualizar (mediante
+previsualizaciones generadas en memoria RAM con `URL.createObjectURL`) y sustituir la foto libremente mientras la
+consulta esté en `BORRADOR`.
 
 ### Sellado de Auditoría
-Al pasar la consulta a estado `VALIDADA`, la interfaz aplica un bloqueo inmutable (candado) sobre la evidencia. El archivo queda sellado criptográficamente para auditorías de nóminas y comisiones.
+
+Al pasar la consulta a estado `VALIDADA`, la interfaz aplica un bloqueo inmutable (candado) sobre la evidencia. El
+archivo queda sellado criptográficamente para auditorías de nóminas y comisiones.
 
 ### Flujo de Desbloqueo (Unlock-by-Admin)
-El Administrador dispone de un visor inmersivo de evidencias en su Centro de Validaciones con capacidad destructiva. Si la evidencia es ilegible, el admin ejecuta un borrado físico en Drive que reabre la consulta automáticamente para que el nutricionista enmiende el error.
+
+El Administrador dispone de un visor inmersivo de evidencias en su Centro de Validaciones con capacidad destructiva. Si
+la evidencia es ilegible, el admin ejecuta un borrado físico en Drive que reabre la consulta automáticamente para que el
+nutricionista enmiende el error.
 
 ## [08/04/2026] 📧 Sistema de Notificaciones Transaccionales (Event-Driven)
 
 ### Arquitectura Asíncrona (Pub/Sub)
-Implementación del patrón Publisher-Subscriber mediante eventos de Spring (`@TransactionalEventListener` y `@Async`). El envío de correos se delega a un hilo secundario estrictamente tras el `COMMIT` de la base de datos, garantizando tiempos de respuesta instantáneos en el frontend de React.
+
+Implementación del patrón Publisher-Subscriber mediante eventos de Spring (`@TransactionalEventListener` y `@Async`). El
+envío de correos se delega a un hilo secundario estrictamente tras el `COMMIT` de la base de datos, garantizando tiempos
+de respuesta instantáneos en el frontend de React.
 
 ### Entornos y Mocking Seguros (Sandbox)
-Configuración de Mailtrap como servidor SMTP Sandbox para el entorno de desarrollo. Esto aísla los envíos, permitiendo pruebas reales de formato y adjuntos sin el riesgo de enviar correos accidentales a clientes reales.
+
+Configuración de Mailtrap como servidor SMTP Sandbox para el entorno de desarrollo. Esto aísla los envíos, permitiendo
+pruebas reales de formato y adjuntos sin el riesgo de enviar correos accidentales a clientes reales.
 
 ### Motor de Plantillas y Branding (Thymeleaf)
-Diseño de correos B2B en HTML compatible con clientes corporativos. Las variables (totales, nombres) y enlaces dinámicos al VPS se inyectan desde el backend. Se implementó la incrustación del logo corporativo mediante Content-ID (CID inline) para garantizar su visualización en Outlook y Gmail.
+
+Diseño de correos B2B en HTML compatible con clientes corporativos. Las variables (totales, nombres) y enlaces dinámicos
+al VPS se inyectan desde el backend. Se implementó la incrustación del logo corporativo mediante Content-ID (CID inline)
+para garantizar su visualización en Outlook y Gmail.
 
 ### Infraestructura PDF (OpenPDF)
-Integración de OpenPDF como generador de documentos y facturas directamente en memoria RAM (`ByteArrayOutputStream`). El documento se genera al vuelo y se adjunta automáticamente al correo, evitando la persistencia temporal en el disco duro del servidor por razones de seguridad y rendimiento.
+
+Integración de OpenPDF como generador de documentos y facturas directamente en memoria RAM (`ByteArrayOutputStream`). El
+documento se genera al vuelo y se adjunta automáticamente al correo, evitando la persistencia temporal en el disco duro
+del servidor por razones de seguridad y rendimiento.
+
+## [08/04/2026] 🛡️ Arquitectura de Seguridad Empresarial: El "Gran Hermano" y Notario Digital
+
+Se ha diseñado e implementado una arquitectura de auditoría Zero-Trust (Cero Confianza) dividida en tres capas
+independientes para garantizar la trazabilidad absoluta de operaciones, datos y red, cumpliendo con los estándares
+legales B2B.
+
+### Nivel 1: Trazabilidad de Accesos y Red (Seguridad Event-Driven)
+
+Se ha implementado un registro inmutable de inicios de sesión para detectar patrones de acceso anómalos o suplantación
+de identidad.
+
+* **Mecanismo:** Patrón Pub/Sub (`@EventListener` asíncrono). El hilo principal de autenticación (JWT) delega el
+  guardado del log a un hilo secundario para mantener latencias <50ms.
+* **Datos Capturados:** Email del usuario, Dirección IP real (resolviendo cabeceras `X-Forwarded-For` de proxys
+  inversos) y Dispositivo/Navegador (`User-Agent`).
+* **Auditoría Forense (SQL):**
+  ```sql
+  SELECT ip_address, user_agent, fecha_acceso 
+  FROM registro_accesos 
+  WHERE usuario_email = 'sospechoso@nutripharma.es' 
+  ORDER BY fecha_acceso DESC;
+
+### Nivel 2: El Notario Digital (Hibernate Envers)
+
+Para blindar financieramente el sistema (comisiones y liquidaciones), se ha integrado Hibernate Envers configurado con
+una Entidad de Revisión Personalizada (`AuditoriaRevisionEntity`).
+
+* **Mecanismo:** Envers intercepta de forma nativa a nivel de ORM cualquier `INSERT`, `UPDATE` o `DELETE` sobre las
+  entidades críticas marcadas con `@Audited` (Consultas, Pedidos, Productos, Farmacias, etc.).
+* **Inyección de Identidad:** Mediante un `RevisionListener`, el motor lee el token JWT del contexto de seguridad de
+  Spring (`SecurityContextHolder`) y estampa el correo del autor en cada mutación de datos.
+* **Control de Telarañas de Entidades:** Se aplicó el modo de ignorado (`@NotAudited`) a catálogos estáticos como la
+  tabla de Roles, evitando cuellos de botella en la generación de tablas espejo (`_aud`).
+    * **Auditoría Forense (SQL):**
+
+  ```sql
+      -- Ejemplo para rastrear manipulaciones en Consultas Médicas
+      SELECT 
+      r.id AS id_revision,
+      FROM_UNIXTIME(r.timestamp / 1000) AS fecha_del_cambio,
+      r.usuario_email AS culpable,
+      c.id AS consulta_modificada,
+      CASE c.revtype 
+          WHEN 0 THEN 'CREACIÓN'
+          WHEN 1 THEN 'MODIFICACIÓN'
+          WHEN 2 THEN 'BORRADO'
+      END AS accion_realizada,
+      c.estado,
+      c.nuevas,
+      c.revisiones
+      FROM auditoria_revisiones r
+      JOIN consultas_aud c ON r.id = c.rev
+      WHERE r.usuario_email = 'sospechoso@nutripharma.es'
+      ORDER BY r.timestamp DESC;
+
+### Nivel 3: Trazabilidad de API (Interceptor HTTP)
+
+Capa de monitoreo perimetral para registrar la actividad transaccional general de la API (excluyendo cargas útiles
+pesadas por privacidad).
+
+* **Mecanismo:** Implementación nativa de `HandlerInterceptor` de Spring MVC (`ApiAuditInterceptor`), evaluando el ciclo
+  `afterCompletion`.
+* **Filtro de Acción:** Solo procesa peticiones de mutación (`POST`, `PUT`, `DELETE`, `PATCH`), ignorando consultas de
+  lectura (`GET`) para evitar saturar los discos de almacenamiento.
+* **Salida de Logs:** Actualmente emite los registros de auditoría por salida estándar (Consola IDE). Preparado para
+  volcado a disco (`/var/log/nutripharma/api.log`) en el futuro entorno de Producción (VPS Linux) mediante perfiles de
+  Logback
+
+
+## [09/04/2026] 🏁 Hito de Trazabilidad y Definición de Ruta a Producción
+
+Hoy se ha cerrado el ciclo de **Certificación de Evidencias**. Se ha implementado con éxito el sellado de tiempo (`timestamping`) para las pruebas gráficas de los nutricionistas.
+
+* **Funcionalidad:** Tanto el Administrador como el Nutricionista disponen ahora de un panel de "Trazabilidad de la Prueba" en los visores de imágenes.
+* **Integridad:** El sistema cruza la fecha de la jornada con el momento exacto de la subida a Drive, permitiendo detectar desfases temporales en los reportes.
+* **Estado del Proyecto:** El Backend se considera **Feature-Complete** en un 90%. Entramos en fase de pulido y blindaje de calidad.
+
+---
+
+## 🚀 Plan Maestro: De Alpha a Despliegue Operativo (The "TFG" Roadmap)
+
+Se define la ruta crítica para transformar este desarrollo en un producto de nivel Enterprise. El enfoque se divide en cuatro pilares de calidad profesional:
+
+### Fase 1: Finalización de Features y Refactorización Estética
+* **UI/UX Pro:** Implementación de notificaciones asíncronas (Toasts) para reflejar la naturaleza no bloqueante del envío de correos y PDFs.
+* **Flujo de Incidencias:** Cierre del ciclo de vida de la consulta (Rechazo con motivo y reapertura de subida de fotos).
+* **Código Limpio:** Refactorización de clases y scripts bajo principios SOLID. Comentado exhaustivo y generación de Javadoc para facilitar el mantenimiento por terceros.
+
+### Fase 2: Blindaje mediante Testing (QA)
+* **Backend (JUnit5 + Mockito):** Cobertura de pruebas unitarias sobre los servicios críticos (Cálculo de comisiones, lógica de saldos y reglas de negocio geográficas).
+* **Frontend (Vitest / Cypress):** Pruebas de integración de componentes para asegurar que la navegación y los modales no sufran regresiones.
+
+### Fase 3: Infraestructura y Despliegue (DevOps)
+* **Provisionamiento:** Alquiler y configuración de un VPS Linux (Ubuntu Server) independiente para pruebas finales.
+* **Entorno de Producción:** Configuración de Nginx como Proxy Inverso, Dockerización (opcional) y securización de la base de datos MySQL.
+* **Migración de Dominio:** Implementación de subdominios (`erp.nutripharma.es`) y traspaso de propiedad de infraestructura a la empresa una vez validada la estabilidad.
+
+### Fase 4: Entrega y Documentación Técnica
+* Generación del manual de arquitectura y diccionario de datos.
+* Traspaso de credenciales y claves API (Google Drive, Mailtrap/SMTP).

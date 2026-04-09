@@ -4,6 +4,7 @@ import com.nutripharma.api_nutripharma.operations.consultas.domain.EstadoConsult
 import com.nutripharma.api_nutripharma.operations.consultas.domain.TipoTurno;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class ConsultaDTO {
@@ -37,6 +38,7 @@ public class ConsultaDTO {
             String observacionesJornada,
             EstadoConsulta estado,
             String mensajeIncidencia,
-            String evidenciaUrl
+            String evidenciaUrl,
+            LocalDateTime evidenciaFecha
     ) {}
 }

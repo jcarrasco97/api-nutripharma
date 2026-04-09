@@ -3,6 +3,8 @@ package com.nutripharma.api_nutripharma.documents.documentacion.domain;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
+
 import java.time.LocalDate;
 
 @Entity
@@ -12,6 +14,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Documento {
 
     @Id

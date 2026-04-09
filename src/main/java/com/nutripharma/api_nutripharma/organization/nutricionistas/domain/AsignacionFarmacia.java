@@ -3,6 +3,7 @@ package com.nutripharma.api_nutripharma.organization.nutricionistas.domain;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 @Entity
 @Table(name = "nutricionista_farmacia") // Mantenemos el nombre de la tabla puente
@@ -11,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class AsignacionFarmacia {
 
     @Id

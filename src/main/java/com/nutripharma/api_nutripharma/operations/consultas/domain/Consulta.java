@@ -4,6 +4,7 @@ import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -15,6 +16,7 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Consulta {
 
     @Id

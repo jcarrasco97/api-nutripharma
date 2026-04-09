@@ -3,6 +3,7 @@ package com.nutripharma.api_nutripharma.sales.pedidos.domain;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Pedido {
 
     @Id

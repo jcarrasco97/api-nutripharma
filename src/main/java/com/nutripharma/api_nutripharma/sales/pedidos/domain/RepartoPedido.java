@@ -3,6 +3,7 @@ package com.nutripharma.api_nutripharma.sales.pedidos.domain;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 import java.math.BigDecimal;
 
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class RepartoPedido {
 
     @Id

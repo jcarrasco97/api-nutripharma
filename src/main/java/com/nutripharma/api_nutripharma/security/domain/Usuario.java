@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Usuario implements UserDetails { // <-- El cambio clave está aquí
 
     @Id
@@ -45,6 +48,7 @@ public class Usuario implements UserDetails { // <-- El cambio clave está aquí
     @Column(name = "reset_password_expiration")
     private java.time.LocalDateTime resetPasswordExpiration;
 
+    @NotAudited
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_rol",

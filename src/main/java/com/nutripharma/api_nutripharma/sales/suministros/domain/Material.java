@@ -2,6 +2,7 @@ package com.nutripharma.api_nutripharma.sales.suministros.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 @Entity
 @Table(name = "materiales")
@@ -10,6 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Material {
 
     @Id

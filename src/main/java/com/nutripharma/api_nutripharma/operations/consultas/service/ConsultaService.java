@@ -293,7 +293,8 @@ public class ConsultaService {
                 c.getObservacionesJornada(),
                 c.getEstado(),
                 c.getMensajeIncidencia(),
-                c.getEvidenciaUrl()
+                c.getEvidenciaUrl(),
+                c.getEvidenciaFecha()
         );
     }
 }
