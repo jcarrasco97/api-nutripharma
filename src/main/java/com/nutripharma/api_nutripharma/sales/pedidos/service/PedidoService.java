@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.nutripharma.api_nutripharma.core.events.PedidoConfirmadoEvent; // <-- IMPORTA EL EVENTO
 import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTA EL PUBLICADOR
+import com.nutripharma.api_nutripharma.organization.personal.repository.AdministradorRepository; // <-- AÑADIR ESTE
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ public class PedidoService {
     private final NutricionistaRepository nutricionistaRepository;
     private final ProductoRepository productoRepository;
     private final ApplicationEventPublisher eventPublisher; // <-- INYECTA EL EVENT PUBLISHER
+    private final AdministradorRepository administradorRepository;
 
     private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
 
@@ -217,14 +219,13 @@ public class PedidoService {
     private PedidoResponse mapToResponse(Pedido p) {
         List<LineaPedidoResponse> lineasResponse = p.getLineas().stream()
                 .map(l -> {
-                    // ESCUDO ANTI-FANTASMAS PARA PRODUCTOS
                     String nombreProd = (l.getProducto() != null)
                             ? l.getProducto().getNombreProducto()
                             : "[PRODUCTO DESCATALOGADO]";
 
                     return new LineaPedidoResponse(
                             l.getId(),
-                            nombreProd, // Usamos el nombre seguro
+                            nombreProd,
                             l.getCantidad(),
                             l.getBonificados(),
                             l.getPrecioAplicado(),
@@ -235,26 +236,44 @@ public class PedidoService {
 
         List<RepartoResponse> repartosResponse = p.getRepartos().stream()
                 .map(r -> {
-                    // ESCUDO ANTI-FANTASMAS PARA NUTRICIONISTAS
                     String nombreNutri = (r.getNutricionista() != null)
                             ? r.getNutricionista().getNombre() + " " + r.getNutricionista().getApellidos()
                             : "[NUTRICIONISTA DE BAJA]";
                     Long idNutri = (r.getNutricionista() != null) ? r.getNutricionista().getId() : 0L;
 
-                    return new RepartoResponse(
-                            idNutri,
-                            nombreNutri,
-                            r.getPorcentaje()
-                    );
+                    return new RepartoResponse(idNutri, nombreNutri, r.getPorcentaje());
                 }).collect(Collectors.toList());
 
-        // ESCUDO ANTI-FANTASMAS PARA FARMACIAS
         String nombreFarmacia = (p.getFarmacia() != null)
                 ? p.getFarmacia().getNombre()
                 : "[FARMACIA DADA DE BAJA]";
 
-        // Aseguramos que el creador no sea nulo si es un pedido antiguo
-        String creador = (p.getCreadoPor() != null) ? p.getCreadoPor() : "Sistema";
+        // 🛡️ TRADUCCIÓN DE EMAIL A NOMBRE REAL (Buscando en los perfiles)
+        String emailCreador = p.getCreadoPor();
+        String nombreRealAutor = "Sistema";
+
+        if (emailCreador != null) {
+            // 1. ¿Fue un Administrador (Proxy)?
+            var adminOpt = administradorRepository.findByUsuarioEmail(emailCreador);
+            if (adminOpt.isPresent()) {
+                nombreRealAutor = adminOpt.get().getNombre() + " " + adminOpt.get().getApellidos() + " (Proxy)";
+            } else {
+                // 2. ¿Fue una Nutricionista?
+                var nutriOpt = nutricionistaRepository.findByUsuarioEmail(emailCreador);
+                if (nutriOpt.isPresent()) {
+                    nombreRealAutor = nutriOpt.get().getNombre() + " " + nutriOpt.get().getApellidos();
+                } else {
+                    // 3. ¿Fue la propia Farmacia?
+                    var farmaciaOpt = farmaciaRepository.findByUsuarioEmail(emailCreador);
+                    if (farmaciaOpt.isPresent()) {
+                        nombreRealAutor = farmaciaOpt.get().getNombre();
+                    } else {
+                        // Fallback por si acaso
+                        nombreRealAutor = emailCreador;
+                    }
+                }
+            }
+        }
 
         return new PedidoResponse(
                 p.getId(),
@@ -263,7 +282,8 @@ public class PedidoService {
                 p.getEstado(),
                 calcularTotalRealPedido(p),
                 lineasResponse,
-                creador,
+                emailCreador,
+                nombreRealAutor, // <-- AHORA SÍ PASAMOS EL NOMBRE REAL TRADUCIDO
                 repartosResponse
         );
     }

@@ -51,6 +51,7 @@ public class PedidoDTO {
             BigDecimal totalPedido,
             List<LineaPedidoResponse> lineas,
             String creadoPor,
+            String creadoPorNombre,
             List<RepartoResponse> repartos // <-- Devolvemos el desglose
     ) {}
 }
