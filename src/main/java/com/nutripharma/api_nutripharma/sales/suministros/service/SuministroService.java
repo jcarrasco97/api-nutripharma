@@ -33,8 +33,6 @@ public class SuministroService {
     @Transactional(readOnly = true)
     public List<MaterialResponse> listarMateriales(String email) {
         List<Material> todosLosMateriales = materialRepository.findAll();
-
-        // REGLA ANTI-SPAM: Buscamos qué tiene bloqueado esta nutricionista
         List<Long> materialesBloqueados = peticionRepository.findMaterialesBloqueadosParaNutricionista(email);
 
         return todosLosMateriales.stream()
@@ -42,7 +40,7 @@ public class SuministroService {
                         m.getId(),
                         m.getNombre(),
                         m.getCantidadEstandar(),
-                        !materialesBloqueados.contains(m.getId()) // Si está bloqueado, devolvemos disponible = false
+                        !materialesBloqueados.contains(m.getId())
                 )).toList();
     }
 
@@ -52,7 +50,6 @@ public class SuministroService {
         Nutricionista n = nutricionistaRepository.findByUsuarioEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada."));
 
-        // Validación Anti-Spam en Backend (por si hackean el Frontend)
         List<Long> bloqueados = peticionRepository.findMaterialesBloqueadosParaNutricionista(email);
         boolean intentoIlegal = req.materialIds().stream().anyMatch(bloqueados::contains);
 
@@ -65,7 +62,7 @@ public class SuministroService {
         PeticionSuministro p = PeticionSuministro.builder()
                 .nutricionista(n)
                 .fechaPeticion(LocalDate.now())
-                .estado(EstadoPeticion.SOLICITADO) // Nuevo estado del PRD
+                .estado(EstadoPeticion.SOLICITADO)
                 .materialesSolicitados(materiales)
                 .build();
 
@@ -74,7 +71,6 @@ public class SuministroService {
 
     @Transactional(readOnly = true)
     public List<PeticionResponse> obtenerMisPeticiones(String email) {
-        // Historial individual filtrado desde la Base de Datos
         return peticionRepository.findByNutricionistaUsuarioEmailOrderByFechaPeticionDesc(email)
                 .stream().map(this::mapPeticion).toList();
     }
@@ -83,16 +79,19 @@ public class SuministroService {
         List<MaterialResponse> mats = p.getMaterialesSolicitados().stream()
                 .map(m -> new MaterialResponse(m.getId(), m.getNombre(), m.getCantidadEstandar(), true)).toList();
 
-        return new PeticionResponse(p.getId(), p.getNutricionista().getNombre(), p.getFechaPeticion(), p.getEstado(), mats);
+        // 🛡️ ESCUDO ANTI-NULOS
+        String nombreNutri = p.getNutricionista() != null
+                ? p.getNutricionista().getNombre()
+                : "[Nutricionista Borrado]";
+
+        return new PeticionResponse(p.getId(), nombreNutri, p.getFechaPeticion(), p.getEstado(), mats);
     }
     // --- MÉTODOS EXCLUSIVOS PARA EL ADMIN ---
 
     @Transactional(readOnly = true)
     public List<PeticionResponse> listarTodasPeticionesAdmin() {
-        // Obtenemos todas las peticiones del sistema
         return peticionRepository.findAll()
                 .stream()
-                // Ordenamos para que las SOLICITADAS salgan primero
                 .sorted((a, b) -> {
                     if (a.getEstado() == EstadoPeticion.SOLICITADO && b.getEstado() != EstadoPeticion.SOLICITADO)
                         return -1;

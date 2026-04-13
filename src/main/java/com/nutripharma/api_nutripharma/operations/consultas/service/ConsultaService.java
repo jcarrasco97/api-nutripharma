@@ -9,8 +9,8 @@ import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository;
-import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository; // <-- Añadido
-import com.nutripharma.api_nutripharma.documents.documentacion.service.GoogleDriveService; // <-- Añadido
+import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
+import com.nutripharma.api_nutripharma.documents.documentacion.service.GoogleDriveService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,12 +25,13 @@ public class ConsultaService {
     private final ConsultaRepository consultaRepository;
     private final NutricionistaRepository nutricionistaRepository;
     private final FarmaciaRepository farmaciaRepository;
-    private final UsuarioRepository usuarioRepository; // <-- Faltaba inyectar esto
-    private final GoogleDriveService googleDriveService; // <-- Faltaba inyectar esto
+    private final UsuarioRepository usuarioRepository;
+    private final GoogleDriveService googleDriveService;
+
     @Transactional
     public ConsultaResponse registrarTurno(ConsultaRequest request) {
 
-        // 1. Validaciones de Coherencia Temporal Básica (El inicio no puede ser después del fin)
+        // 1. Validaciones de Coherencia Temporal Básica
         if (request.horaFin().isBefore(request.horaInicio()) || request.horaFin().equals(request.horaInicio())) {
             throw new IllegalArgumentException("La hora de fin debe ser posterior a la hora de inicio.");
         }
@@ -58,7 +59,6 @@ public class ConsultaService {
                 .nutricionista(nutricionista)
                 .farmacia(farmacia)
                 .fecha(request.fecha())
-                .tipoTurno(request.tipoTurno())
                 .horaInicio(request.horaInicio())
                 .horaFin(request.horaFin())
                 .nuevas(request.nuevas() != null ? request.nuevas() : 0)
@@ -101,9 +101,7 @@ public class ConsultaService {
             throw new IllegalStateException("No se puede validar una consulta cancelada.");
         }
 
-        // Limpiamos el mensaje de incidencia si lo hubiera, ya que se da por resuelta
         consulta.setMensajeIncidencia(null);
-
         aplicarSaldoFarmacia(consulta);
 
         consulta.setEstado(EstadoConsulta.VALIDADA);
@@ -119,19 +117,15 @@ public class ConsultaService {
             throw new IllegalStateException("No se puede editar una consulta cancelada.");
         }
 
-        // 1. REVERSIÓN: Si ya estaba validada, restamos el saldo antiguo antes de poner los datos nuevos
         if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
             revertirSaldoFarmacia(consulta);
         }
 
-        // 2. EDICIÓN: Actualizamos los valores numéricos
         consulta.setNuevas(nuevas != null ? nuevas : 0);
         consulta.setRevisiones(revisiones != null ? revisiones : 0);
         consulta.setPromociones(promociones != null ? promociones : 0);
-        // Si no te envían el personal de farmacia por DTO, mantenemos el que había o ponemos 0
         consulta.setPersonalFarmacia(personalFarmacia != null ? personalFarmacia : consulta.getPersonalFarmacia());
 
-        // 3. APLICACIÓN: Limpiamos incidencia y sumamos el nuevo saldo calculado
         consulta.setMensajeIncidencia(null);
         aplicarSaldoFarmacia(consulta);
 
@@ -148,7 +142,6 @@ public class ConsultaService {
             throw new IllegalStateException("La consulta ya está cancelada.");
         }
 
-        // Si la consulta ya había generado dinero, tenemos que restárselo a la farmacia
         if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
             revertirSaldoFarmacia(consulta);
         }
@@ -162,6 +155,9 @@ public class ConsultaService {
     // =========================================================================================
 
     private void aplicarSaldoFarmacia(Consulta consulta) {
+        // Escudo: Si la farmacia fue borrada, no podemos darle dinero
+        if (consulta.getFarmacia() == null) return;
+
         double totalGenerado = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
         if (totalGenerado > 0) {
             Farmacia farmacia = consulta.getFarmacia();
@@ -174,6 +170,9 @@ public class ConsultaService {
     }
 
     private void revertirSaldoFarmacia(Consulta consulta) {
+        // Escudo: Si la farmacia fue borrada, no hay a quien quitarle el dinero
+        if (consulta.getFarmacia() == null) return;
+
         double totalGeneradoAnterior = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
         if (totalGeneradoAnterior > 0) {
             Farmacia farmacia = consulta.getFarmacia();
@@ -225,8 +224,7 @@ public class ConsultaService {
         Consulta consulta = consultaRepository.findById(consultaId)
                 .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
 
-        // Validar que el nutricionista que sube la foto es el dueño de la consulta (o es un admin)
-        boolean esDueño = consulta.getNutricionista().getUsuario().getEmail().equals(emailNutricionista);
+        boolean esDueño = consulta.getNutricionista() != null && consulta.getNutricionista().getUsuario().getEmail().equals(emailNutricionista);
         boolean isAdmin = usuarioRepository.findByEmailIgnorandoBajas(emailNutricionista)
                 .orElseThrow()
                 .getRoles().stream().anyMatch(r -> r.getNombre().contains("ADMIN"));
@@ -235,13 +233,9 @@ public class ConsultaService {
             throw new SecurityException("No tienes permiso para adjuntar evidencias a este turno.");
         }
 
-        // Subir a Drive
         String driveFileId = googleDriveService.subirEvidencia(archivo, consultaId);
-
-        // Actualizar la consulta
         consulta.setEvidenciaUrl(driveFileId);
         consulta.setEvidenciaFecha(java.time.LocalDateTime.now());
-
         consultaRepository.save(consulta);
     }
 
@@ -254,7 +248,6 @@ public class ConsultaService {
             throw new IllegalStateException("Esta consulta no tiene ninguna foto adjunta.");
         }
 
-        // Descargamos los bytes directamente desde Google Drive usando el ID guardado
         return googleDriveService.descargarArchivo(consulta.getEvidenciaUrl());
     }
 
@@ -267,10 +260,7 @@ public class ConsultaService {
             throw new IllegalStateException("Esta consulta no tiene evidencia para borrar.");
         }
 
-        // 1. Destruimos el archivo físicamente en Google Drive
         googleDriveService.eliminarArchivo(consulta.getEvidenciaUrl());
-
-        // 2. Limpiamos los campos en la Base de Datos
         consulta.setEvidenciaUrl(null);
         consulta.setEvidenciaFecha(null);
 
@@ -278,12 +268,20 @@ public class ConsultaService {
     }
 
     private ConsultaResponse mapToResponse(Consulta c) {
+        // 🛡️ ESCUDO ANTI-NULOS: Si el nutri o la farmacia fueron borrados, devolvemos un nombre de seguridad
+        String nombreNutri = c.getNutricionista() != null
+                ? c.getNutricionista().getNombre() + " " + c.getNutricionista().getApellidos()
+                : "[Nutricionista Borrado]";
+
+        String nombreFarmacia = c.getFarmacia() != null
+                ? c.getFarmacia().getNombre()
+                : "[Farmacia Borrada]";
+
         return new ConsultaResponse(
                 c.getId(),
-                c.getNutricionista().getNombre() + " " + c.getNutricionista().getApellidos(),
-                c.getFarmacia().getNombre(),
+                nombreNutri,
+                nombreFarmacia,
                 c.getFecha(),
-                c.getTipoTurno(),
                 c.getHoraInicio(),
                 c.getHoraFin(),
                 c.getNuevas(),

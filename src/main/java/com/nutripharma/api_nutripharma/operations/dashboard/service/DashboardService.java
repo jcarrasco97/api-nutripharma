@@ -154,7 +154,9 @@ public class DashboardService {
         List<DashboardDTO.EventoCalendarioDTO> eventos = new java.util.ArrayList<>();
 
         pedidoRepository.findByFechaPedidoBetween(inicioMes, finMes).forEach(p -> {
-            String nombreDestino = p.getFarmacia().getNombre();
+            // 🛡️ ESCUDO ANTI-NULOS (Por si la farmacia se dio de baja)
+            String nombreDestino = p.getFarmacia() != null ? p.getFarmacia().getNombre() : "[Farmacia Borrada]";
+
             eventos.add(new DashboardDTO.EventoCalendarioDTO(
                     "PED-" + p.getId(),
                     "PEDIDO",
@@ -166,14 +168,17 @@ public class DashboardService {
         });
 
         consultaRepository.findByFechaBetween(inicioMes, finMes).forEach(c -> {
-            String nombreNutri = c.getNutricionista().getNombre() + " " + c.getNutricionista().getApellidos();
+            // 🛡️ ESCUDO ANTI-NULOS
+            String nombreNutri = c.getNutricionista() != null ? c.getNutricionista().getNombre() + " " + c.getNutricionista().getApellidos() : "[Nutri Borrado]";
+            String nombreFarmacia = c.getFarmacia() != null ? c.getFarmacia().getNombre() : "[Farmacia Borrada]";
+
             eventos.add(new DashboardDTO.EventoCalendarioDTO(
                     "CON-" + c.getId(),
                     "CONSULTA",
                     "Consulta: " + nombreNutri,
                     c.getFecha(),
                     c.getEstado().name(),
-                    c.getFarmacia().getNombre() + " (" + c.getTipoTurno() + ")"
+                    nombreFarmacia
             ));
         });
 

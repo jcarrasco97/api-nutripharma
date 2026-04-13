@@ -1,7 +1,6 @@
 package com.nutripharma.api_nutripharma.operations.consultas.controller.dto;
 
 import com.nutripharma.api_nutripharma.operations.consultas.domain.EstadoConsulta;
-import com.nutripharma.api_nutripharma.operations.consultas.domain.TipoTurno;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,7 +12,6 @@ public class ConsultaDTO {
             Long nutricionistaId,
             Long farmaciaId,
             LocalDate fecha,
-            TipoTurno tipoTurno,
             LocalTime horaInicio,
             LocalTime horaFin,
             Integer nuevas,
@@ -28,7 +26,6 @@ public class ConsultaDTO {
             String nutricionistaNombre,
             String farmaciaNombre,
             LocalDate fecha,
-            TipoTurno tipoTurno,
             LocalTime horaInicio,
             LocalTime horaFin,
             Integer nuevas,

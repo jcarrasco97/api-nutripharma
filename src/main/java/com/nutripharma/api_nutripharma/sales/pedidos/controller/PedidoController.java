@@ -26,10 +26,11 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.crearPedido(request));
     }
 
-    @PutMapping("/{id}/liquidar")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
-    public ResponseEntity<PedidoResponse> liquidarPedido(@PathVariable Long id) {
-        return ResponseEntity.ok(pedidoService.liquidarPedido(id));
+    // 👇 NUEVA RUTA PARA CANCELAR PEDIDOS 👇
+    @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PedidoResponse> cancelarPedidoAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.cancelarPedidoAdmin(id));
     }
 
     @GetMapping

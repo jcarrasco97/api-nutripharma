@@ -125,20 +125,36 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoResponse liquidarPedido(Long id) {
+    public PedidoResponse cancelarPedidoAdmin(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
-        if (pedido.getEstado() == EstadoPedido.LIQUIDADO) {
-            throw new IllegalStateException("El pedido ya se encuentra liquidado.");
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
+            throw new IllegalStateException("Solo se pueden cancelar pedidos pendientes de envío.");
         }
 
-        BigDecimal totalReal = calcularTotalRealPedido(pedido);
-        if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
-            throw new IllegalStateException("No se puede liquidar. El importe real no alcanza los " + UMBRAL_LIQUIDACION + "€.");
+        // 1. Calcular cuánto Saldo Virtual se gastó en este pedido
+        BigDecimal totalSaldoGastado = BigDecimal.ZERO;
+        for (LineaPedido linea : pedido.getLineas()) {
+            if (linea.getPagadoConSaldo() != null && linea.getPagadoConSaldo()) {
+                BigDecimal subtotalLinea = linea.getPrecioAplicado().multiply(new BigDecimal(linea.getCantidad()));
+                totalSaldoGastado = totalSaldoGastado.add(subtotalLinea);
+            }
         }
 
-        pedido.setEstado(EstadoPedido.LIQUIDADO);
+        // 2. Si gastó saldo virtual, se lo devolvemos a la farmacia
+        if (totalSaldoGastado.compareTo(BigDecimal.ZERO) > 0) {
+            Farmacia farmacia = pedido.getFarmacia();
+            BigDecimal saldoActual = BigDecimal.valueOf(farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0);
+            BigDecimal saldoRestaurado = saldoActual.add(totalSaldoGastado);
+
+            farmacia.setSaldoVirtual(saldoRestaurado.doubleValue());
+            farmaciaRepository.save(farmacia);
+        }
+
+        // 3. Cambiar estado a CANCELADO
+        pedido.setEstado(EstadoPedido.CANCELADO);
+
         return mapToResponse(pedidoRepository.save(pedido));
     }
 
