@@ -1330,3 +1330,44 @@ Se ha llevado a cabo una refactorización crítica en el módulo de Pedidos para
 
 * **Próximos Pasos (Roadmap Lunes):**
   Implementar el flujo de revisión obligatoria en el Gatekeeper. Bloquear las acciones directas de "Enviar/Aprobar" en las tarjetas externas, obligando al Admin a abrir el Modal de Detalles para revisar la mercancía antes de ejecutar la acción.
+
+## [14/04/2026] 🏗️ Refactorización de Núcleo y Arquitectura de Resúmenes Inteligentes
+
+Se ha realizado una pausa estratégica para pagar deuda técnica y unificar la lógica visual de los resúmenes de rendimiento.
+
+* **Historial de Turnos Inteligente:** Rediseño total de `HistorialTurnos.jsx`.
+  * *Lógica de Filtrado:* El componente ahora se encarga de su propio estado (meses automáticos, ordenación por pesos "Pendientes primero"). Se ha eliminado la lógica redundante del Hook para aligerar el renderizado.
+  * *UX de Evidencias:* Se ha blindado la lógica de subida. Ahora, si una consulta no tiene foto (por borrado del admin o falta de subida inicial), el sistema permite re-subirla independientemente del estado "Validada".
+  * *Fix Crítico de Memoria:* Se ha corregido un bug en el visor de evidencias que revocaba la URL del Blob prematuramente, impidiendo previsualizar la foto del formulario más de una vez.
+
+* **Seguridad en Alta de Personal:** Mejora en `FormularioAdmin.jsx` y `usePersonalInterno.js`.
+  * Implementación de validación de doble coincidencia de contraseña.
+  * Bloqueo de "Paste" en el campo de confirmación para asegurar la verificación manual del usuario.
+  * Unificación estética de iconos Lucide en todos los campos del perfil.
+
+* **Panel de Control Nutricionista (V2):** Rediseño del `PanelCabeceraNutri`.
+  * *Layout Horizontal:* Se ha pasado de una rejilla de columnas a filas apiladas para evitar el solapamiento de cifras de facturación altas (miles de euros).
+  * *Selector de Historial:* Conexión con el nuevo motor de meses del Hook para permitir la consulta de rendimientos pasados, recalculando comisiones y objetivos en tiempo real.
+
+---
+
+## 🏁 PLAN ESTRATÉGICO: Camino a Producción (15 de Mayo)
+
+Tras auditar el estado del proyecto (Alpha Tardía), se acuerdan las siguientes decisiones de ingeniería para cumplir los plazos de entrega del 15 de mayo.
+
+### 🛠️ Decisiones de Infraestructura y Metodología
+1.  **Metodología Spec-Driven Development (SDD):** Se utilizará un "Orquestador IA" (Gemini) para definir especificaciones técnicas en archivos `.md`, que serán ejecutadas por un "Agente de Código" (Cursor/Copilot) para asegurar la integridad del sistema.
+2.  **Centralización de Estilos:** Creación de un `tailwind.config.js` corporativo y componentes atómicos en `core/components` para reducir el tamaño de los scripts (evitar componentes de +400 líneas).
+3.  **Control de Versiones Estricto:** Abandono del desarrollo directo en `main`. Creación de ramas por Feature (`refactor-ui`, `feature-tests`, `deploy-config`).
+
+### 📅 Cronograma de Hitos (Roadmap Semanal)
+
+* **Semana 1 (14-21 Abril) - Limpieza de Cimientos:** * Refactorización del Frontend a componentes reutilizables (Botones, Inputs, Cards).
+  * Unificación de la paleta de colores corporativa.
+* **Semana 2 (22-28 Abril) - Optimización y Lógica:** * Afine de buscadores globales.
+  * Cierre de bugs lógicos en cálculos de comisiones de farmacia.
+* **Semana 3 (29 Abril - 05 Mayo) - Garantía de Calidad (QA):** * **Back:** Unit Tests con JUnit 5 y Mockito.
+  * **Front:** Vitest para lógica y Playwright para el flujo crítico de usuario (End-to-End).
+* **Semana 4 (06-15 Mayo) - Despliegue y Cierre:** * Dockerización del ecosistema (Spring Boot + PostgreSQL + React).
+  * Configuración de VPS Linux (Ubuntu) con Nginx y SSL.
+  * Documentación final para entrega (15 Mayo: App Operativa).

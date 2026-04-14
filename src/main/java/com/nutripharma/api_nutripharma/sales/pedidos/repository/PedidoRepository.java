@@ -14,13 +14,16 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     List<Pedido> findByFarmaciaUsuarioEmail(String email);
 
-    // NUEVO: Busca los pedidos navegando a través de la tabla intermedia de repartos
+    // Consulta antigua (basada en comisiones ya repartidas)
     @Query("SELECT p FROM Pedido p JOIN p.repartos r WHERE r.nutricionista.usuario.email = :email")
     List<Pedido> findByRepartosNutricionistaEmail(@Param("email") String email);
 
+    // 👇 CONSULTA CORREGIDA: Usamos una subconsulta desde el Nutricionista
+    @Query("SELECT p FROM Pedido p WHERE p.farmacia IN (SELECT a.farmacia FROM Nutricionista n JOIN n.asignaciones a WHERE n.usuario.email = :email)")
+    List<Pedido> findByNutricionistaAsignadaEmail(@Param("email") String email);
+
     List<Pedido> findByFechaPedidoBetween(LocalDate start, LocalDate end);
 
-    // NUEVO: Buscar pedidos de una nutricionista en un rango de fechas (atravesando los repartos)
     @Query("SELECT p FROM Pedido p JOIN p.repartos r WHERE r.nutricionista.id = :nutricionistaId AND p.fechaPedido BETWEEN :inicio AND :fin")
     List<Pedido> findByRepartosNutricionistaIdAndFechaPedidoBetween(
             @Param("nutricionistaId") Long nutricionistaId,

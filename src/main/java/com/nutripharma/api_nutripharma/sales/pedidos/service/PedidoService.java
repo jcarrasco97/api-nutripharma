@@ -165,10 +165,14 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> obtenerMisPedidos(String email) {
+        // 1. Intentamos buscar como si fuera una Farmacia
         List<Pedido> pedidos = pedidoRepository.findByFarmaciaUsuarioEmail(email);
 
+        // 2. Si la lista está vacía, asumimos que es una Nutricionista.
         if (pedidos.isEmpty()) {
-            pedidos = pedidoRepository.findByRepartosNutricionistaEmail(email);
+            // Usamos la nueva consulta que ignora si hay repartos o no,
+            // simplemente busca pedidos hechos por las farmacias de la Nutri.
+            pedidos = pedidoRepository.findByNutricionistaAsignadaEmail(email);
         }
 
         return pedidos.stream().map(this::mapToResponse).collect(Collectors.toList());
