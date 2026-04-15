@@ -1,4 +1,4 @@
-package com.nutripharma.api_nutripharma.core.config;
+package com.nutripharma.api_nutripharma.security.config;
 
 import com.nutripharma.api_nutripharma.core.audit.ApiAuditInterceptor;
 import lombok.RequiredArgsConstructor;

@@ -42,6 +42,11 @@ public class Consulta {
     @Column(name = "hora_fin", nullable = false)
     private LocalTime horaFin;
 
+    // --- AUDITORÍA (Sello de tiempo del servidor) ---
+    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    @Builder.Default
+    private java.time.LocalDateTime fechaCreacion = java.time.LocalDateTime.now();
+
     // --- MÉTRICAS (Contadores por defecto a 0) ---
     @Builder.Default
     @Column(nullable = false)

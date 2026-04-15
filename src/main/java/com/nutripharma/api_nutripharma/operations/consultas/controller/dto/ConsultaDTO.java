@@ -36,6 +36,7 @@ public class ConsultaDTO {
             EstadoConsulta estado,
             String mensajeIncidencia,
             String evidenciaUrl,
-            LocalDateTime evidenciaFecha
+            LocalDateTime evidenciaFecha,
+            LocalDateTime fechaCreacion
     ) {}
 }

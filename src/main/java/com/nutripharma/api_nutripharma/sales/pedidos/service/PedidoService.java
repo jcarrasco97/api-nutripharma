@@ -99,8 +99,7 @@ public class PedidoService {
                     .pedido(nuevoPedido)
                     .producto(producto)
                     .cantidad(lineaReq.cantidad())
-                    .bonificados(lineaReq.bonificados())
-                    .precioAplicado(precioAplicable)
+                    .bonificados(recalcularBonificadosSeguros(lineaReq.cantidad(), pagadoConSaldo))                    .precioAplicado(precioAplicable)
                     .pagadoConSaldo(pagadoConSaldo)
                     .build();
 
@@ -306,5 +305,26 @@ public class PedidoService {
                 nombreRealAutor, // <-- AHORA SÍ PASAMOS EL NOMBRE REAL TRADUCIDO
                 repartosResponse
         );
+    }
+
+    private Integer recalcularBonificadosSeguros(Integer cantidadComprada, Boolean pagadoConSaldo) {
+        if (pagadoConSaldo != null && pagadoConSaldo) return 0; // El saldo no genera regalos
+        if (cantidadComprada == null || cantidadComprada <= 0) return 0;
+
+        int q = cantidadComprada;
+        int totalRegalos = 0;
+
+        totalRegalos += (q / 100) * 25;
+        q = q % 100;
+
+        totalRegalos += (q / 20) * 5;
+        q = q % 20;
+
+        totalRegalos += (q / 10) * 2;
+        q = q % 10;
+
+        totalRegalos += (q / 6) * 1;
+
+        return totalRegalos;
     }
 }

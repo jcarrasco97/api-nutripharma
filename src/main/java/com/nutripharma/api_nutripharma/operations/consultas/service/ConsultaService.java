@@ -292,7 +292,8 @@ public class ConsultaService {
                 c.getEstado(),
                 c.getMensajeIncidencia(),
                 c.getEvidenciaUrl(),
-                c.getEvidenciaFecha()
+                c.getEvidenciaFecha(),
+                c.getFechaCreacion()
         );
     }
 }

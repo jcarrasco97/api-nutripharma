@@ -18,6 +18,7 @@
         <java.version>25</java.version>
         <springdoc.version>3.0.0-RC1</springdoc.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
