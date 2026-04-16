@@ -14,7 +14,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Registramos el interceptor y le decimos que vigile TODO lo que entre por la API
+        // Registramos el interceptor y le decimos que vigile todo lo que entre por la
+        // API
         registry.addInterceptor(apiAuditInterceptor)
                 .addPathPatterns("/api/**");
     }

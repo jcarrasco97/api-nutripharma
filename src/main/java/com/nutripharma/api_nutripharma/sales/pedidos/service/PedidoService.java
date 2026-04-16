@@ -163,6 +163,13 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
+    public PedidoResponse obtenerPorId(Long id) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+        return mapToResponse(pedido);
+    }
+
+    @Transactional(readOnly = true)
     public List<PedidoResponse> obtenerMisPedidos(String email) {
         // 1. Intentamos buscar como si fuera una Farmacia
         List<Pedido> pedidos = pedidoRepository.findByFarmaciaUsuarioEmail(email);

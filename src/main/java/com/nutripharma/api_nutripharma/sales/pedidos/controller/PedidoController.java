@@ -39,6 +39,12 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.listarTodos());
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
+    public ResponseEntity<PedidoResponse> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.obtenerPorId(id));
+    }
+
     // En PedidoController.java asegura que esté así:
     @GetMapping("/mis-pedidos")
     @PreAuthorize("hasRole('NUTRICIONISTA') or hasRole('FARMACIA')") // <-- OJO: Añade 'FARMACIA' aquí

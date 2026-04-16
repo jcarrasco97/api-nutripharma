@@ -43,6 +43,12 @@ public class ConsultaController {
         return ResponseEntity.ok(consultaService.obtenerTodas());
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
+    public ResponseEntity<ConsultaResponse> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(consultaService.obtenerPorId(id));
+    }
+
     @GetMapping("/mis-consultas")
     @PreAuthorize("hasRole('NUTRICIONISTA')")
     public ResponseEntity<List<ConsultaResponse>> obtenerMisConsultas(java.security.Principal principal) {

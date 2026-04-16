@@ -3,7 +3,6 @@ package com.nutripharma.api_nutripharma.organization.nutricionistas.domain;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.envers.Audited;
 

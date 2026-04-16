@@ -2,7 +2,6 @@ package com.nutripharma.api_nutripharma.sales.catalogo.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.envers.Audited;
 

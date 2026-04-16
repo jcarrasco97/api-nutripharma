@@ -30,8 +30,11 @@ public class DashboardController {
 
     @GetMapping("/admin/facturacion")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<DashboardDTO.FacturacionMensualDTO>> obtenerFacturacionGlobal(@RequestParam int anio) {
-        return ResponseEntity.ok(dashboardService.obtenerFacturacionGlobalAnual(anio));
+    public ResponseEntity<List<DashboardDTO.FacturacionMensualDTO>> obtenerFacturacionGlobal(
+            @RequestParam int anio,
+            @RequestParam(required = false) Long farmaciaId,
+            @RequestParam(required = false) Long nutricionistaId) {
+        return ResponseEntity.ok(dashboardService.obtenerFacturacionGlobalAnual(anio, farmaciaId, nutricionistaId));
     }
 
     @GetMapping("/admin/calendario")
@@ -40,6 +43,22 @@ public class DashboardController {
             @RequestParam int anio,
             @RequestParam int mes) {
         return ResponseEntity.ok(dashboardService.obtenerEventosCalendario(anio, mes));
+    }
+
+    @GetMapping("/admin/auditoria/{nutricionistaId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DashboardDTO.AuditoriaNutriDTO> obtenerAuditoriaNutricionista(
+            @PathVariable Long nutricionistaId,
+            @RequestParam int anio,
+            @RequestParam int mes
+    ) {
+        return ResponseEntity.ok(dashboardService.obtenerAuditoriaNutricionista(nutricionistaId, anio, mes));
+    }
+
+    @GetMapping("/admin/auditoria/{nutricionistaId}/meses")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> obtenerMesesAuditoria(@PathVariable Long nutricionistaId) {
+        return ResponseEntity.ok(dashboardService.obtenerMesesActividadNutricionista(nutricionistaId));
     }
 
 }

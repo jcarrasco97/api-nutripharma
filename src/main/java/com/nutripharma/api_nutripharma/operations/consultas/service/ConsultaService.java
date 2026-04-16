@@ -210,6 +210,13 @@ public class ConsultaService {
     }
 
     @Transactional(readOnly = true)
+    public ConsultaResponse obtenerPorId(Long id) {
+        Consulta consulta = consultaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+        return mapToResponse(consulta);
+    }
+
+    @Transactional(readOnly = true)
     public List<ConsultaResponse> obtenerMisConsultas(String email) {
         return consultaRepository.findByNutricionistaUsuarioEmail(email).stream().map(this::mapToResponse).collect(Collectors.toList());
     }

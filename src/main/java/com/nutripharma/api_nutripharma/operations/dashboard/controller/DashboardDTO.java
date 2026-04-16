@@ -38,4 +38,13 @@ public class DashboardDTO {
             String estado,    // Ej: "PENDIENTE_LIQUIDAR", "BORRADOR"
             String detalles   // Ej: "140.50€" o "Turno: MAÑANA"
     ) {}
+
+    // 👇 NUEVO: DTO para el Modo Auditoría del Admin 👇
+    public record AuditoriaNutriDTO(
+            int totalKilometros,
+            int totalConsultas,
+            int cantidadPedidos,
+            BigDecimal facturacionConsultas,
+            BigDecimal facturacionProductos
+    ) {}
 }

@@ -35,8 +35,8 @@ public class DataSeeder implements CommandLineRunner {
         // 1. Asegurar la existencia de los roles base del sistema (RBAC)
         Rol superAdminRol = crearRolSiNoExiste("ROLE_SUPERADMIN"); // <-- AÑADIDO
         Rol adminRol = crearRolSiNoExiste("ROLE_ADMIN");
-        Rol nutriRol = crearRolSiNoExiste("ROLE_NUTRICIONISTA");
-        Rol farmaciaRol = crearRolSiNoExiste("ROLE_FARMACIA");
+        crearRolSiNoExiste("ROLE_NUTRICIONISTA");
+        crearRolSiNoExiste("ROLE_FARMACIA");
 
         // 2. Asegurar la existencia del usuario administrador principal (Paco)
         String adminEmail = "admin@nutripharma.com";

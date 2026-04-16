@@ -63,4 +63,11 @@ public class ProductoController {
         productoService.restaurarProducto(id);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/orden-recomendado")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> guardarOrdenRecomendado(@RequestBody List<Long> productIds) {
+        productoService.guardarOrdenRecomendado(productIds);
+        return ResponseEntity.ok().build();
+    }
 }

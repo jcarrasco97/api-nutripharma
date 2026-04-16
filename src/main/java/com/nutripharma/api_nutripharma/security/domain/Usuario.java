@@ -55,6 +55,7 @@ public class Usuario implements UserDetails { // <-- El cambio clave está aquí
             joinColumns = @JoinColumn(name = "usuario_id"),
             inverseJoinColumns = @JoinColumn(name = "rol_id")
     )
+    @Builder.Default
     private Set<Rol> roles = new HashSet<>();
 
     // --- MÉTODOS DE USERDETAILS (CONTRATO CON SPRING SECURITY) ---

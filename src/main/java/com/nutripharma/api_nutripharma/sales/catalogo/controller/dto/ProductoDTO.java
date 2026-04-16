@@ -25,7 +25,8 @@ public class ProductoDTO {
             BigDecimal pvf,
             BigDecimal pvp,
             BigDecimal iva,
-            Boolean hayExistencias
+            Boolean hayExistencias,
+            Integer orden
     ) {
     }
 

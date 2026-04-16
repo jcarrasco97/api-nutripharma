@@ -10,6 +10,7 @@ import com.nutripharma.api_nutripharma.sales.pedidos.domain.Pedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.domain.RepartoPedido;
 import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO;
+import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.AsignacionFarmacia;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -108,14 +109,117 @@ public class DashboardService {
         );
     }
 
+    // --- Auditoria de Nutricionista (Admin) ---
+    @Transactional(readOnly = true)
+    public DashboardDTO.AuditoriaNutriDTO obtenerAuditoriaNutricionista(Long nutricionistaId, int anio, int mes) {
+        Nutricionista nutricionista = nutricionistaRepository.findById(nutricionistaId)
+                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
+
+        YearMonth yearMonth = YearMonth.of(anio, mes);
+        LocalDate fechaInicio = yearMonth.atDay(1);
+        LocalDate fechaFin = yearMonth.atEndOfMonth();
+
+        List<Consulta> consultasMes = consultaRepository.findByNutricionistaIdAndEstadoAndFechaBetween(
+                nutricionistaId, EstadoConsulta.VALIDADA, fechaInicio, fechaFin);
+
+        List<Pedido> pedidosMes = pedidoRepository.findByRepartosNutricionistaIdAndFechaPedidoBetween(
+                nutricionistaId, fechaInicio, fechaFin);
+
+        int totalNuevas = consultasMes.stream().mapToInt(Consulta::getNuevas).sum();
+        int totalRevisiones = consultasMes.stream().mapToInt(Consulta::getRevisiones).sum();
+        BigDecimal facturacionConsultas = new BigDecimal((totalNuevas * 25) + (totalRevisiones * 20));
+
+        BigDecimal facturacionProductos = BigDecimal.ZERO;
+
+        for (Pedido p : pedidosMes) {
+            BigDecimal totalPedido = calcularTotalPedido(p);
+            BigDecimal porcentajeAsignado = p.getRepartos().stream()
+                    .filter(r -> r.getNutricionista().getId().equals(nutricionistaId))
+                    .findFirst()
+                    .map(RepartoPedido::getPorcentaje)
+                    .orElse(new BigDecimal("100.00"));
+
+            BigDecimal parteProporcional = totalPedido.multiply(porcentajeAsignado)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            facturacionProductos = facturacionProductos.add(parteProporcional);
+        }
+
+        int totalKilometros = consultasMes.stream().mapToInt(c -> {
+            if (c.getFarmacia() == null) return 0;
+            return nutricionista.getAsignaciones().stream()
+                    .filter(a -> a.getFarmacia() != null && 
+                                (a.getFarmacia().getId().equals(c.getFarmacia().getId()) ||
+                                 (a.getFarmacia().getNombre() != null && c.getFarmacia().getNombre() != null && 
+                                  a.getFarmacia().getNombre().equalsIgnoreCase(c.getFarmacia().getNombre()))))
+                    .findFirst()
+                    .map(a -> a.getKilometros() != null ? a.getKilometros() : 0)
+                    .orElse(0);
+        }).sum();
+
+        return new DashboardDTO.AuditoriaNutriDTO(
+                totalKilometros,
+                consultasMes.size(),
+                pedidosMes.size(),
+                facturacionConsultas,
+                facturacionProductos
+        );
+    }
+
+    // --- Meses Disponibles para Auditoría (Admin) ---
+    @Transactional(readOnly = true)
+    public List<String> obtenerMesesActividadNutricionista(Long nutricionistaId) {
+        if (!nutricionistaRepository.existsById(nutricionistaId)) {
+            throw new IllegalArgumentException("Nutricionista no encontrado");
+        }
+
+        java.util.Set<String> mesesUnicos = new java.util.HashSet<>();
+
+        // 1. Extraer meses de consultas validadas
+        consultaRepository.findByNutricionistaId(nutricionistaId).stream()
+                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
+                .forEach(c -> {
+                    String mesAnio = String.format("%04d-%02d", c.getFecha().getYear(), c.getFecha().getMonthValue());
+                    mesesUnicos.add(mesAnio);
+                });
+
+        // 2. Extraer meses de pedidos enviados/liquidados (según el frontend)
+        pedidoRepository.findByRepartosNutricionistaId(nutricionistaId).stream()
+                .filter(p -> p.getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
+                .forEach(p -> {
+                    String mesAnio = String.format("%04d-%02d", p.getFechaPedido().getYear(), p.getFechaPedido().getMonthValue());
+                    mesesUnicos.add(mesAnio);
+                });
+
+        return mesesUnicos.stream()
+                .sorted(java.util.Comparator.reverseOrder())
+                .toList();
+    }
+
     // --- Gráfica de Facturación Anual (Admin) ---
     @Transactional(readOnly = true)
-    public List<DashboardDTO.FacturacionMensualDTO> obtenerFacturacionGlobalAnual(int anio) {
+    public List<DashboardDTO.FacturacionMensualDTO> obtenerFacturacionGlobalAnual(int anio, Long farmaciaId, Long nutricionistaId) {
         LocalDate inicioAnio = LocalDate.of(anio, 1, 1);
         LocalDate finAnio = LocalDate.of(anio, 12, 31);
 
-        List<Pedido> pedidosAnuales = pedidoRepository.findByFechaPedidoBetween(inicioAnio, finAnio);
-        List<Consulta> consultasAnuales = consultaRepository.findByFechaBetween(inicioAnio, finAnio);
+        List<Pedido> pedidosTotales = pedidoRepository.findByFechaPedidoBetween(inicioAnio, finAnio);
+        List<Consulta> consultasTotales = consultaRepository.findByFechaBetween(inicioAnio, finAnio);
+
+        // --- APLICAR FILTROS EN MEMORIA ---
+        
+        // 1. Filtrado de Pedidos
+        List<Pedido> pedidosAnuales = pedidosTotales.stream()
+                .filter(p -> p.getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
+                .filter(p -> farmaciaId == null || (p.getFarmacia() != null && p.getFarmacia().getId().equals(farmaciaId)))
+                .filter(p -> nutricionistaId == null || p.getRepartos().stream().anyMatch(r -> r.getNutricionista() != null && r.getNutricionista().getId().equals(nutricionistaId)))
+                .toList();
+
+        // 2. Filtrado de Consultas
+        List<Consulta> consultasAnuales = consultasTotales.stream()
+                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
+                .filter(c -> farmaciaId == null || (c.getFarmacia() != null && c.getFarmacia().getId().equals(farmaciaId)))
+                .filter(c -> nutricionistaId == null || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutricionistaId)))
+                .toList();
 
         List<DashboardDTO.FacturacionMensualDTO> facturacionMeses = new java.util.ArrayList<>();
         String[] nombresMeses = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
@@ -124,12 +228,24 @@ public class DashboardService {
             final int mesActual = i;
 
             BigDecimal ingresosPedidos = pedidosAnuales.stream()
-                    .filter(p -> p.getFechaPedido().getMonthValue() == mesActual && p.getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
-                    .map(this::calcularTotalPedido)
+                    .filter(p -> p.getFechaPedido().getMonthValue() == mesActual)
+                    .map(p -> {
+                        BigDecimal total = calcularTotalPedido(p);
+                        if (nutricionistaId == null) return total;
+                        
+                        // Si filtramos por nutricionista, sacar el proporcional de su reparto
+                        BigDecimal porcentaje = p.getRepartos().stream()
+                            .filter(r -> r.getNutricionista().getId().equals(nutricionistaId))
+                            .map(RepartoPedido::getPorcentaje)
+                            .findFirst()
+                            .orElse(BigDecimal.ZERO);
+                            
+                        return total.multiply(porcentaje).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    })
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             BigDecimal ingresosConsultas = consultasAnuales.stream()
-                    .filter(c -> c.getFecha().getMonthValue() == mesActual && c.getEstado() == EstadoConsulta.VALIDADA)
+                    .filter(c -> c.getFecha().getMonthValue() == mesActual)
                     .map(c -> new BigDecimal((c.getNuevas() * 25) + (c.getRevisiones() * 20)))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 

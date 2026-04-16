@@ -1,7 +1,5 @@
 package com.nutripharma.api_nutripharma.documents.documentacion.service;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -9,6 +7,8 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.UserCredentials;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,14 +39,13 @@ public class GoogleDriveService {
     private Drive getDriveService() throws GeneralSecurityException, IOException {
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
-        Credential credential = new GoogleCredential.Builder()
-                .setTransport(HTTP_TRANSPORT)
-                .setJsonFactory(JSON_FACTORY)
-                .setClientSecrets(clientId, clientSecret)
-                .build()
-                .setRefreshToken(refreshToken);
+        UserCredentials credentials = UserCredentials.newBuilder()
+                .setClientId(clientId)
+                .setClientSecret(clientSecret)
+                .setRefreshToken(refreshToken)
+                .build();
 
-        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }
@@ -81,6 +80,21 @@ public class GoogleDriveService {
         File fileMetadata = new File();
         // Le ponemos un prefijo para que en Drive no sea un caos de fotos genéricas
         fileMetadata.setName("EVIDENCIA_TURNO_" + consultaId + "_" + archivo.getOriginalFilename());
+        fileMetadata.setParents(Collections.singletonList(folderId));
+
+        InputStreamContent mediaContent = new InputStreamContent(archivo.getContentType(), archivo.getInputStream());
+
+        File file = getDriveService().files().create(fileMetadata, mediaContent)
+                .setFields("id")
+                .execute();
+
+        return file.getId();
+    }
+
+    // 👇 NUEVO MÉTODO PARA FACTURAS DE GASTOS 👇
+    public String subirFactura(MultipartFile archivo, String nombreGenerado) throws IOException, GeneralSecurityException {
+        File fileMetadata = new File();
+        fileMetadata.setName(nombreGenerado);
         fileMetadata.setParents(Collections.singletonList(folderId));
 
         InputStreamContent mediaContent = new InputStreamContent(archivo.getContentType(), archivo.getInputStream());
