@@ -92,12 +92,22 @@ public class FarmaciaService {
         Farmacia f = farmaciaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
 
+        // --- Actualizaci\u00f3n de credenciales del Usuario vinculado ---
+        Usuario usuario = f.getUsuario();
+        if (request.email() != null && !request.email().isBlank()) {
+            usuario.setEmail(request.email());
+        }
+        if (request.password() != null && !request.password().isBlank()) {
+            usuario.setPassword(passwordEncoder.encode(request.password()));
+        }
+        usuarioRepository.save(usuario);
+
+        // --- Actualizaci\u00f3n de datos de la Farmacia ---
         f.setNombre(request.nombre());
         f.setCif(request.cif());
         f.setDireccion(request.direccion());
         f.setEsProvinciaLocal(request.esProvinciaLocal());
 
-        // --- NUEVO ---
         if (request.porcentajeComision() != null) {
             f.setPorcentajeComision(request.porcentajeComision());
         }

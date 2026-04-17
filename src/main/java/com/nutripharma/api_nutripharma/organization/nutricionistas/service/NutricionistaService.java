@@ -110,8 +110,22 @@ public class NutricionistaService {
         Nutricionista n = nutricionistaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrada"));
 
+        // --- Actualización de credenciales del Usuario vinculado ---
+        Usuario usuario = n.getUsuario();
+        if (request.email() != null && !request.email().isBlank()) {
+            usuario.setEmail(request.email());
+        }
+        if (request.password() != null && !request.password().isBlank()) {
+            usuario.setPassword(passwordEncoder.encode(request.password()));
+        }
+        usuarioRepository.save(usuario);
+
+        // --- Actualización de datos del perfil ---
         n.setNombre(request.nombre());
         n.setApellidos(request.apellidos());
+        if (request.telefono() != null) {
+            n.setTelefono(request.telefono());
+        }
         n.setHorasContratoMensual(request.horasContratoMensual());
 
         // --- NUEVO: Borramos las antiguas y guardamos las nuevas ---

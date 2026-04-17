@@ -26,6 +26,8 @@ public class FarmaciaDTO {
     }
 
     public record FarmaciaUpdateRequest(
+            String email,
+            String password,
             String nombre,
             String cif,
             String direccion,

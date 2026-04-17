@@ -4,9 +4,10 @@ import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoRequest;
 import com.nutripharma.api_nutripharma.sales.catalogo.controller.dto.ProductoDTO.ProductoResponse;
 import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
-import com.nutripharma.api_nutripharma.sales.catalogo.domain.RecomendacionProducto;
+import com.nutripharma.api_nutripharma.sales.catalogo.domain.OrdenPorDefectoProducto;
 import com.nutripharma.api_nutripharma.sales.catalogo.repository.ProductoRepository;
-import com.nutripharma.api_nutripharma.sales.catalogo.repository.RecomendacionRepository;
+import com.nutripharma.api_nutripharma.sales.catalogo.repository.OrdenPorDefectoRepository;
+import com.nutripharma.api_nutripharma.sales.pedidos.repository.LineaPedidoRepository;
 import com.nutripharma.api_nutripharma.sales.pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,8 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final PedidoRepository pedidoRepository;
-    private final RecomendacionRepository recomendacionRepository;
+    private final OrdenPorDefectoRepository ordenPorDefectoRepository;
+    private final LineaPedidoRepository lineaPedidoRepository;
 
     @Transactional
     public ProductoResponse crearProducto(ProductoRequest request) {
@@ -59,6 +61,9 @@ public class ProductoService {
                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
         p.setNombreProducto(request.nombreProducto());
+        if (request.acronimo() != null) p.setAcronimo(request.acronimo());
+        if (request.categoria() != null) p.setCategoria(request.categoria());
+        if (request.referencia() != null) p.setReferencia(request.referencia());
         p.setPvf(request.pvf());
         p.setPvp(request.pvp());
 
@@ -114,22 +119,31 @@ public class ProductoService {
     @Transactional
     public void guardarOrdenRecomendado(List<Long> productIds) {
         // 1. Limpiamos el orden anterior
-        recomendacionRepository.deleteAll();
+        ordenPorDefectoRepository.deleteAll();
 
         // 2. Insertamos el nuevo orden
-        List<RecomendacionProducto> nuevasRecoms = new ArrayList<>();
+        List<OrdenPorDefectoProducto> nuevasRecoms = new ArrayList<>();
         for (int i = 0; i < productIds.size(); i++) {
             Producto p = productoRepository.findById(productIds.get(i)).orElseThrow();
-            nuevasRecoms.add(new RecomendacionProducto(null, p, i));
+            nuevasRecoms.add(new OrdenPorDefectoProducto(null, p, i));
         }
-        recomendacionRepository.saveAll(nuevasRecoms);
+        ordenPorDefectoRepository.saveAll(nuevasRecoms);
     }
 
+    @Transactional(readOnly = true)
+    public List<Long> obtenerRecomendadosPorFarmacia(Long farmaciaId) {
+        return lineaPedidoRepository.findTopProductosIdsByFarmacia(farmaciaId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> obtenerTopVentasGlobal() {
+        return lineaPedidoRepository.findTopProductosIdsGlobal();
+    }
 
     private ProductoResponse mapToResponse(Producto p) {
         // Buscamos si este producto tiene una posición guardada. Si no, le damos un 999 para que vaya al final.
-        Integer posicionOrden = recomendacionRepository.findByProductoId(p.getId())
-                .map(RecomendacionProducto::getPosicion)
+        Integer posicionOrden = ordenPorDefectoRepository.findByProductoId(p.getId())
+                .map(OrdenPorDefectoProducto::getPosicion)
                 .orElse(999);
 
         return new ProductoResponse(

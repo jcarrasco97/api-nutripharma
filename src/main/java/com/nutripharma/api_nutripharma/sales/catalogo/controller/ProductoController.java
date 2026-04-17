@@ -70,4 +70,16 @@ public class ProductoController {
         productoService.guardarOrdenRecomendado(productIds);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/recomendados/{farmaciaId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
+    public ResponseEntity<List<Long>> obtenerRecomendadosPorFarmacia(@PathVariable Long farmaciaId) {
+        return ResponseEntity.ok(productoService.obtenerRecomendadosPorFarmacia(farmaciaId));
+    }
+
+    @GetMapping("/mas-vendidos")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA') or hasRole('FARMACIA')")
+    public ResponseEntity<List<Long>> obtenerTopVentasGlobal() {
+        return ResponseEntity.ok(productoService.obtenerTopVentasGlobal());
+    }
 }

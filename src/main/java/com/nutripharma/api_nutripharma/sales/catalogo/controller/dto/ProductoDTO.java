@@ -30,9 +30,12 @@ public class ProductoDTO {
     ) {
     }
 
-    // Petición para modificar un producto existente
+    // Petición para modificar un producto existente (TODOS los campos editables)
     public record ProductoUpdateRequest(
             String nombreProducto,
+            String acronimo,
+            CategoriaProducto categoria,
+            String referencia,
             BigDecimal pvf,
             BigDecimal pvp
     ) {

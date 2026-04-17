@@ -38,8 +38,11 @@ public class NutricionistaDTO {
     ) {}
 
     public record NutricionistaUpdateRequest(
+            String email,
+            String password,
             String nombre,
             String apellidos,
+            String telefono,
             Integer horasContratoMensual,
             List<AsignacionRequest> asignaciones // <-- ACTUALIZADO
     ) {}

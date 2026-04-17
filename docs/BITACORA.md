@@ -1371,3 +1371,32 @@ Tras auditar el estado del proyecto (Alpha Tardía), se acuerdan las siguientes 
 * **Semana 4 (06-15 Mayo) - Despliegue y Cierre:** * Dockerización del ecosistema (Spring Boot + PostgreSQL + React).
   * Configuración de VPS Linux (Ubuntu) con Nginx y SSL.
   * Documentación final para entrega (15 Mayo: App Operativa).
+
+## [15/04/2026] 🧾 Fase 1: Cimientos del Sistema de Facturación y Gastos
+
+Se ha implementado desde cero la primera fase del módulo de "Gastos y Kilometraje", separando conceptual y arquitectónicamente las facturas de la entidad genérica de documentos para optimizar futuras consultas SQL.
+
+* **Arquitectura Backend (Subida Automática):** * Creación de la entidad `FacturaGasto` vinculada directamente a la `Nutricionista`.
+  * Integración con `GoogleDriveService` para implementar un renombrado automático estandarizado (`dd-MM-yyyy_Km_Nombre_Apellidos.ext`), evitando errores humanos en la nomenclatura de archivos.
+* **Interfaz de Usuario y Seguridad (Frontend):**
+  * Creación de un servicio independiente (`facturasService.js`) y vistas de subida modularizadas.
+  * Implementación de desplegables paramétricos para seleccionar el mes correspondiente, evitando errores tipográficos ("Abril" vs "abril").
+  * Integración de un sistema de borrado para el Administrador protegido por una barrera de seguridad nativa (`window.confirm`) para prevenir eliminaciones accidentales en la nube.
+
+---
+
+## [16/04/2026] 📅 Fase 2 y 3: Calendario Escalable y Súper-Dashboard de Auditoría
+
+Se ha abordado la refactorización visual y lógica del módulo de Inteligencia de Negocio del Administrador, aplicando patrones de diseño de ERPs modernos para gestionar la densidad de información.
+
+* **Calendario Operativo (Divulgación Progresiva):**
+  * *Rediseño Responsive:* Se han configurado 3 escenarios de visualización mediante Tailwind (Desktop con badges completos, Tablet con vista compacta, y Móvil con indicadores de puntos tipo iOS).
+  * *Navegación por Capas (Progressive Disclosure):* Eliminación de la saturación visual. El flujo ahora es: **Nivel 1** (Mes global) -> **Nivel 2** (Modal de Resumen Diario con listas limpias) -> **Nivel 3** (Modal de Detalle Completo).
+  * *Prevención de "Data Starvation" (Fetch on Demand):* Refactorización crítica de la conexión Back-Front. Los Niveles 1 y 2 cargan DTOs ultraligeros, ejecutando peticiones asíncronas de datos profundos (`dashboardService.obtenerConsultaDetalle`) *solo* al acceder al Nivel 3.
+  * *Reutilización de Componentes:* Adaptación de `ModalDetalleValidacion.jsx` para inyectarle una prop `modoLectura`, permitiendo reutilizar la vista desde el calendario bloqueando cualquier edición accidental.
+
+* **Panel de Auditoría Avanzada (Súper-Dashboard):**
+  * *Separación de Responsabilidades:* Creación de `AdminAuditoriaPanel.jsx`. Se ha separado la validación operativa (Documentación) del análisis métrico (Dashboard) por petición expresa de negocio.
+  * *Cruce de Kilometraje:* Implementación de una tarjeta analítica premium que cruza de forma automática las "Consultas Validadas" con los "Km Totales" calculados por el sistema, listo para contrastar con la factura de la Fase 1.
+  * *Filtro Temporal Dinámico:* Creación de un endpoint puente en el backend (`/auditoria/{id}/meses`) que informa al frontend de los meses exactos en los que ha trabajado una nutricionista, evitando que el administrador busque datos en meses vacíos.
+  * *Fix Visual:* Corrección del renderizado condicional de strings para ocultar los paréntesis vacíos `()` en nutricionistas sin email configurado.
