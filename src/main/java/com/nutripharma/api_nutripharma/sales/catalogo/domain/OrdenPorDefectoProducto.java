@@ -1,6 +1,5 @@
 package com.nutripharma.api_nutripharma.sales.catalogo.domain;
 
-import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
 import jakarta.persistence.*;
 import lombok.*;
 
