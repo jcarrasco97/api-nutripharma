@@ -1400,3 +1400,23 @@ Se ha abordado la refactorización visual y lógica del módulo de Inteligencia 
   * *Cruce de Kilometraje:* Implementación de una tarjeta analítica premium que cruza de forma automática las "Consultas Validadas" con los "Km Totales" calculados por el sistema, listo para contrastar con la factura de la Fase 1.
   * *Filtro Temporal Dinámico:* Creación de un endpoint puente en el backend (`/auditoria/{id}/meses`) que informa al frontend de los meses exactos en los que ha trabajado una nutricionista, evitando que el administrador busque datos en meses vacíos.
   * *Fix Visual:* Corrección del renderizado condicional de strings para ocultar los paréntesis vacíos `()` en nutricionistas sin email configurado.
+  ## [2026-04-17] - Refactorización de Arquitectura e-commerce, Filtros en Cascada y UX de Validaciones
+
+### 🛒 E-commerce: Catálogo y Ordenación Avanzada
+* **Arquitectura de Merchandising:** Se rediseñó la lógica de ordenación del catálogo para separar estrictamente el **Orden por Defecto** (curación manual y estratégica del negocio) de los **Recomendados** (motor heurístico de personalización basado en el volumen histórico de compras de cada farmacia).
+* **Filtros Extendidos:** Se añadieron nuevos filtros al frontend (`CatalogoProductos.jsx` y `usePedidos.js`): Top Ventas Global (mediante consulta de agregación SQL en el Backend), Alfabético (A-Z, Z-A) y ordenación por Precio.
+* **Hotfix UI:** Corrección de un error de renderizado en el contador de unidades de las tarjetas de producto (ajuste de clases Tailwind de `1px` a `10px`).
+
+### 📊 Dashboard Admin: Filtros Dependientes (Cascada)
+* **UX/UI en Gráficas:** Implementación de lógica reactiva (`useMemo`) en `useResumenAdmin.js` para los selectores de facturación. Al seleccionar una Nutricionista, el listado de Farmacias se auto-filtra para mostrar únicamente las de su ruta, y viceversa, evitando cruces de datos inválidos sin sobrecargar el servidor.
+
+### ⚙️ Panel de Administración: Modo Edición Absoluta
+* **Control Total (Modo Dios):** Reescritura del `ModalEdicionAdministracion.jsx` para replicar el formulario de creación. Se actualizaron los DTOs y Servicios en el Backend (`NutricionistaService`, `FarmaciaService`, `ProductoService`) para permitir la edición de campos críticos post-creación, como correos electrónicos, contraseñas, comisiones y referencias/SKU.
+
+### 🕵️‍♀️ Validaciones: Separación de Concerns (QA vs Contabilidad)
+* **Refactorización de Flujo de Trabajo:** Tras un análisis de negocio, se separó el concepto de "Validación" en dos procesos distintos: Control de Calidad visual y Cuadre Contable.
+* **Modo Enfoque (Mazo de Cartas):** Desarrollo de un sistema de navegación secuencial en `ModalDetalleValidacion.jsx` y `useValidaciones.js`. Permite iterar entre las tarjetas pendientes de validación con auto-avance, evitando abrir y cerrar modales constantemente.
+* **Motor Contable Backend:** Adición del nuevo estado `LIQUIDADA` en la entidad `Consulta` y creación de un endpoint de actualización en lote (`Bulk Update`) para gestionar el cierre de caja.
+
+### ⏭️ Próximos Pasos (Siguiente Sesión)
+* Creación e integración de `PanelLiquidacion.jsx`: Interfaz de pantalla dividida (Tabla de selección múltiple + Carrito de cobro dinámico) para procesar las consultas en estado `VALIDADA`.
