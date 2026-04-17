@@ -126,4 +126,10 @@ public class ConsultaController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    @PutMapping("/liquidar-lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ConsultaResponse>> liquidarTurnosLote(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(consultaService.liquidarTurnosLote(ids));
+    }
 }

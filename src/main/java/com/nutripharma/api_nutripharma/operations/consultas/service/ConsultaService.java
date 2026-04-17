@@ -150,6 +150,26 @@ public class ConsultaService {
         return mapToResponse(consultaRepository.save(consulta));
     }
 
+    @Transactional
+    public List<ConsultaResponse> liquidarTurnosLote(List<Long> ids) {
+        List<Consulta> consultas = consultaRepository.findAllById(ids);
+
+        for (Consulta c : consultas) {
+            if (c.getEstado() != EstadoConsulta.VALIDADA) {
+                throw new IllegalStateException(
+                        "Solo se pueden liquidar consultas que previamente hayan sido validadas. " +
+                        "La consulta con ID " + c.getId() + " tiene estado: " + c.getEstado()
+                );
+            }
+        }
+
+        consultas.forEach(c -> c.setEstado(EstadoConsulta.LIQUIDADA));
+
+        return consultaRepository.saveAll(consultas).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     // =========================================================================================
     // 🛡️ MÉTODOS PRIVADOS CONTABLES
     // =========================================================================================
