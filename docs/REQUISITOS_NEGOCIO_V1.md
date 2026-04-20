@@ -47,8 +47,7 @@ Para preservar la integridad de las auditorías y la trazabilidad (facturas, con
 * **Estructura:** Registro de "Turno Mañana" y/o "Turno Tarde".
 * **KPIs:** Nuevas, Revisiones, Promo, Personal Farmacia.
 * **Certificación de Pruebas:** Sellado de tiempo obligatorio en fotos de agenda para evitar reportes extemporáneos.
-* **Estados:** `Borrador` (Editable) ➔ `Confirmada` (Pasa a Gatekeeper) ➔ `Con Incidencia` (Error reportado).
-
+* **Estados:** `Borrador` (Editable) ➔ `Pendiente Validación` (Enviada a Central) ➔ `Validada` (Aprobada operativamente) ➔ `Liquidada` (Cierre de caja completado) o `Con Incidencia` (Error reportado).
 ### 2.3. Módulo: Suministros y Material corporativo
 * Catálogo de consumibles con cantidades predefinidas.
 * **Regla Anti-Spam:** Si un ítem está "Solicitado", desaparece del catálogo hasta que el Admin resuelva la petición.
@@ -92,6 +91,14 @@ Si hay 2+ nutricionistas en la misma Farmacia, el sistema obliga mediante un Mod
 ### 4.4. Compensación por Desplazamiento (Kilometraje)
 Registro de distancia única por par `[Nutricionista ↔ Farmacia]`. Se computa viaje de ida y vuelta por cada turno `CONFIRMADO`.
 
+### 4.5. Cierre de Caja (Liquidaciones)
+- Interfaz de contabilidad dedicada a la consolidación financiera de jornadas.
+- Permite la selección múltiple (Batch Processing) de consultas en estado `VALIDADA`, calculando en tiempo real el volumen económico a liquidar mediante filtros por nutricionista y mes.
+- **Edición Retroactiva (Compensación):** El Administrador posee capacidad de edición forzada sobre consultas ya validadas (antes de su liquidación) para corregir errores humanos. La operación queda trazada de forma inmutable en la tabla de auditoría (`consultas_aud`).
+
+### 4.6. Generador de Informes (Próxima Implementación)
+- Herramienta de extracción y visualización de métricas.
+- Basado en los datos consolidados del resumen financiero, permitirá la exportación de rendimiento operativo (consultas, comisiones, liquidaciones) para justificación contable interna.
 ---
 
 ## 5. DISEÑO UI/UX Y BRANDING CORPORATIVO

@@ -1420,3 +1420,21 @@ Se ha abordado la refactorización visual y lógica del módulo de Inteligencia 
 
 ### ⏭️ Próximos Pasos (Siguiente Sesión)
 * Creación e integración de `PanelLiquidacion.jsx`: Interfaz de pantalla dividida (Tabla de selección múltiple + Carrito de cobro dinámico) para procesar las consultas en estado `VALIDADA`.
+
+## [20/04/2026] - Cierre de Caja, Trazabilidad Histórica y Edición Retroactiva
+
+### 💰 Módulo Financiero: Panel de Liquidación (Cierre de Caja)
+* **Creación de `PanelLiquidacion.jsx`:** Implementación de una interfaz de pantalla dividida orientada a contabilidad. A la izquierda, una tabla interactiva con selección múltiple de consultas en estado `VALIDADA`. A la derecha, un panel de resumen dinámico que calcula en tiempo real el importe a liquidar según las tarifas base (Nuevas y Revisiones).
+* **Filtros y Ordenación:** Adición de selectores reactivos por Nutricionista, Mes y un motor de ordenación cuádruple (Fechas y Volumen de Comisión) para facilitar el arqueo de caja.
+* **Integración de Sub-pestañas:** Reestructuración de `VistaValidaciones.jsx` para bifurcar las operaciones de validación (Control de Calidad) y liquidación (Cierre Financiero).
+
+### 🗄️ Base de Datos y Trazabilidad (Single Source of Truth)
+* **Resolución de Esquema SQL:** Solución al error de truncamiento (`Data truncated for column 'estado'`) ejecutando un `ALTER TABLE` para ampliar la columna `estado` a `VARCHAR(50)` en la tabla principal `consultas` y en la tabla de auditoría `consultas_aud` (Hibernate Envers).
+* **Historial Absoluto:** Modificación de `useValidaciones.js` para cargar la totalidad de los registros operativos en la vista de Historial (eliminando el filtrado restrictivo previo), centralizando así la auditoría global de la plataforma.
+* **Filtros de Historial:** Incorporación de parámetros de ordenación para los estados "Liquidados" y "Pendientes", y aplicación de la paleta corporativa (verde/lima) a los badges de estado final.
+
+### 🛡️ Seguridad: Edición Forzada Retroactiva
+* **Manejo de Errores Consolidados:** Implementación de un "Modo Edición Avanzada" en `ModalDetalleValidacion.jsx`. Permite al Administrador corregir métricas financieras de consultas que ya han sido validadas antes de ejecutar la liquidación final. La acción requiere confirmación explícita (alerta de seguridad) y queda registrada inmutablemente mediante el sistema de auditoría de Envers.
+
+### ⏭️ Próximos Pasos (Siguiente Sesión)
+* Desarrollo del **Generador de Informes**: Sistema de exportación y visualización de métricas estructuradas utilizando los datos consolidados en los resúmenes operativos.
