@@ -1,11 +1,31 @@
 package com.nutripharma.api_nutripharma.operations.dashboard.controller;
 
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
+/**
+ * DTO Maestro para el Dashboard Multidimensional.
+ * Incluye estructuras jerárquicas para informes de rango y desgloses anuales.
+ */
 public class DashboardDTO {
 
-    // (Tu DTO actual para Nutricionistas)
+    // --- ESTRUCTURAS JERÁRQUICAS (Para informes Desde-Hasta) ---
+
+    public record ReporteJerarquicoDTO<T>(
+            T totalesRango,
+            List<DesgloseAnualDTO<T>> desglosesPorAnio
+    ) {}
+
+    public record DesgloseAnualDTO<T>(
+            int anio,
+            T datos
+    ) {}
+
+    // --- MODELOS DE DATOS ESPECÍFICOS ---
+
     public record ResumenMensualNutricionista(
             String mes,
             int anio,
@@ -20,7 +40,6 @@ public class DashboardDTO {
             BigDecimal bonusEstimadoEuros
     ) {}
 
-    // 👇 NUEVO: DTO para la Gráfica del Admin 👇
     public record FacturacionMensualDTO(
             String mesTexto,
             int mesNumero,
@@ -29,17 +48,15 @@ public class DashboardDTO {
             BigDecimal totalBruto
     ) {}
 
-    // 👇 NUEVO: DTO para el Calendario del Admin 👇
     public record EventoCalendarioDTO(
-            String idUnico,   // Ej: "PED-12" o "CON-45"
-            String tipo,      // "PEDIDO" o "CONSULTA"
-            String titulo,    // Ej: "Pedido de Farmacia Centro"
+            String idUnico,
+            String tipo,
+            String titulo,
             LocalDate fecha,
-            String estado,    // Ej: "PENDIENTE_LIQUIDAR", "BORRADOR"
-            String detalles   // Ej: "140.50€" o "Turno: MAÑANA"
+            String estado,
+            String detalles
     ) {}
 
-    // 👇 NUEVO: DTO para el Modo Auditoría del Admin 👇
     public record AuditoriaNutriDTO(
             int totalKilometros,
             int totalConsultas,
@@ -47,4 +64,41 @@ public class DashboardDTO {
             BigDecimal facturacionConsultas,
             BigDecimal facturacionProductos
     ) {}
+
+    public record RendimientoProductoDTO(
+            String productoNombre,
+            Long cantidadVendida,
+            BigDecimal precioVentaFarmacia,
+            BigDecimal precioVentaPublico,
+            BigDecimal ingresosGeneradosPvf,
+            BigDecimal ingresosPotencialesPvp
+    ) {}
+
+    public record RendimientoClinicoDTO(
+            String farmaciaNombre,
+            int nuevas,
+            int revisiones,
+            int promocionales,
+            int personal,
+            BigDecimal ingresosGenerados
+    ) {}
+
+    // --- CONFIGURACIÓN DE PETICIÓN (Request) ---
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class InformePdfRequestDTO {
+        @JsonAlias("anio") // Compatibilidad con el front antiguo
+        private int anioInicio;
+        private int anioFin;
+        private Integer mes;
+        private Long farmaciaId;
+        private Long nutricionistaId;
+        private String tipoInforme;
+        private String graficaBase64;
+        private boolean incluirPromocionales;
+        private boolean incluirPersonal;
+    }
 }

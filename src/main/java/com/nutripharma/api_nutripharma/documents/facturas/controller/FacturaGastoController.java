@@ -4,7 +4,6 @@ import com.nutripharma.api_nutripharma.documents.facturas.domain.FacturaGasto;
 import com.nutripharma.api_nutripharma.documents.facturas.service.FacturaGastoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +25,7 @@ public class FacturaGastoController {
     public ResponseEntity<FacturaGasto> subirFactura(
             @RequestParam("archivo") MultipartFile archivo,
             @RequestParam("mesCorresponde") String mesCorresponde) throws GeneralSecurityException, IOException {
-        
+
         FacturaGasto factura = facturaGastoService.subirFactura(archivo, mesCorresponde);
         return ResponseEntity.ok(factura);
     }
