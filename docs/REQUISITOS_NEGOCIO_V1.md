@@ -1,6 +1,6 @@
 # 📋 Especificación de Requisitos de Negocio (PRD) - NutriPharma MVP
 
-**Versión:** 4.0 (Consolidada: Arquitectura N:M, Gatekeeper, Auditoría, UI/UX y Roadmap a Producción)  
+**Versión:** 4.1 (Consolidada: Arquitectura Domain-Driven Modular, Sistema de Diseño Shadcn, Auditoría, UI/UX y Roadmap a Producción)
 **Objetivo:** Servir de fuente de verdad absoluta para el desarrollo, justificando el porqué de las decisiones técnicas y de negocio (alineado con BITACORA.md).
 
 ---
@@ -8,11 +8,11 @@
 ## 1. ARQUITECTURA DE ENTIDADES Y ACCESOS
 
 ### 1.1. Relación Base del Negocio
-El sistema abandona la relación 1:N simple para adoptar una arquitectura **Bidireccional (N:M)** entre Nutricionistas y Farmacias. La relación N:M incluye atributos propios, como la distancia en Kilómetros entre la residencia del empleado y el local comercial.
-
+* El sistema abandona la relación 1:N simple para adoptar una arquitectura **Bidireccional (N:M)** entre Nutricionistas y Farmacias.
+* La relación N:M incluye atributos propios, como la distancia en Kilómetros entre la residencia del empleado y el local comercial.
 * **Asignación Manual:** El Administrador asigna explícitamente en qué Farmacia(s) opera cada Nutricionista.
 * **Aislamiento de Datos:** Un Nutricionista solo puede interactuar (pedidos, consultas) con las farmacias que tenga en su perfil.
-* **Caso de Uso Contemplado:** Aunque es raro, una misma farmacia puede tener asociadas a dos o más nutricionistas simultáneamente, lo que impacta en el motor de comisiones (ver sección 4.3).
+* **Caso de Uso Contemplado:** Aunque es raro, una misma farmacia puede tener asociadas a dos o más nutricionistas simultáneamente, lo que impacta en el motor de comisiones.
 
 ### 1.2. Matriz de Roles y Vistas (RBAC)
 El menú y los componentes de React mutan dinámicamente según el JWT del usuario.
@@ -48,6 +48,7 @@ Para preservar la integridad de las auditorías y la trazabilidad (facturas, con
 * **KPIs:** Nuevas, Revisiones, Promo, Personal Farmacia.
 * **Certificación de Pruebas:** Sellado de tiempo obligatorio en fotos de agenda para evitar reportes extemporáneos.
 * **Estados:** `Borrador` (Editable) ➔ `Pendiente Validación` (Enviada a Central) ➔ `Validada` (Aprobada operativamente) ➔ `Liquidada` (Cierre de caja completado) o `Con Incidencia` (Error reportado).
+
 ### 2.3. Módulo: Suministros y Material corporativo
 * Catálogo de consumibles con cantidades predefinidas.
 * **Regla Anti-Spam:** Si un ítem está "Solicitado", desaparece del catálogo hasta que el Admin resuelva la petición.
@@ -92,21 +93,25 @@ Si hay 2+ nutricionistas en la misma Farmacia, el sistema obliga mediante un Mod
 Registro de distancia única por par `[Nutricionista ↔ Farmacia]`. Se computa viaje de ida y vuelta por cada turno `CONFIRMADO`.
 
 ### 4.5. Cierre de Caja (Liquidaciones)
-- Interfaz de contabilidad dedicada a la consolidación financiera de jornadas.
-- Permite la selección múltiple (Batch Processing) de consultas en estado `VALIDADA`, calculando en tiempo real el volumen económico a liquidar mediante filtros por nutricionista y mes.
-- **Edición Retroactiva (Compensación):** El Administrador posee capacidad de edición forzada sobre consultas ya validadas (antes de su liquidación) para corregir errores humanos. La operación queda trazada de forma inmutable en la tabla de auditoría (`consultas_aud`).
+* Interfaz de contabilidad dedicada a la consolidación financiera de jornadas.
+* Permite la selección múltiple (Batch Processing) de consultas en estado `VALIDADA`, calculando en tiempo real el volumen económico a liquidar mediante filtros por nutricionista y mes.
+* **Edición Retroactiva (Compensación):** El Administrador posee capacidad de edición forzada sobre consultas ya validadas (antes de su liquidación) para corregir errores humanos. La operación queda trazada de forma inmutable en la tabla de auditoría (`consultas_aud`).
 
-### 4.6. Generador de Informes (Próxima Implementación)
-- Herramienta de extracción y visualización de métricas.
-- Basado en los datos consolidados del resumen financiero, permitirá la exportación de rendimiento operativo (consultas, comisiones, liquidaciones) para justificación contable interna.
+### 4.6. Generador de Informes
+* Herramienta de extracción y visualización de métricas.
+* Basado en los datos consolidados del resumen financiero, permitirá la exportación de rendimiento operativo (consultas, comisiones, liquidaciones) para justificación contable interna.
+
 ---
 
-## 5. DISEÑO UI/UX Y BRANDING CORPORATIVO
+## 5. DISEÑO UI/UX Y SISTEMA DE COMPONENTES 🆕
 
-* **Primario:** `#367933` (Acción/Éxito)
-* **Secundario:** `#062e3a` (Institucional)
-* **Acento:** `#b1cb0c` (Resalte con opacidad)
-* **Gris:** `#342c1e` (Texto/Bordes)
+* **Paleta Corporativa Estricta:**
+    * **Primario:** `#367933` (Acción/Éxito)
+    * **Secundario:** `#062e3a` (Institucional)
+    * **Acento:** `#b1cb0c` (Resalte con opacidad)
+    * **Gris:** `#342c1e` (Texto/Bordes)
+* **Sistema de Diseño (Shadcn + Radix UI):** La interfaz se construye íntegramente sobre una librería de componentes agnóstica a la lógica de negocio ubicada en `src/shared/ui/`.
+* **Prohibición de Estilos en Línea:** Queda restringido el uso de colores hexadecimales duros o estilos en línea. Toda la UI debe nutrirse de las variables de `index.css` a través de clases de Tailwind v4.
 
 ---
 
@@ -118,11 +123,13 @@ Registro de distancia única por par `[Nutricionista ↔ Farmacia]`. Se computa 
 
 ---
 
-## 7. CALIDAD PROFESIONAL Y DESPLIEGUE (ROADMAP) 🆕
+## 7. ARQUITECTURA FRONTEND Y ROADMAP A PRODUCCIÓN 🆕
 
-### 7.1. Estándares de Código
-* **Clean Code & SOLID:** Refactorización a componentes atómicos en `core/components`.
-* **SDD (Spec-Driven Development):** Uso de archivos de especificación para guiar la generación de código.
+### 7.1. Domain-Driven Modular Architecture (Frontend)
+Para garantizar la escalabilidad y simetría con el backend en Spring Boot, el frontend adopta una estructura modular por dominios de negocio:
+* **`modules/`:** Carpeta raíz que contiene subdirectorios idénticos al backend (`security`, `operations`, `organization`, `sales`, `documents`). Cada módulo es auto-contenido (posee sus propios componentes, hooks, servicios y vistas).
+* **API Pública por Módulo:** Para prevenir el código espagueti, los módulos solo pueden comunicarse entre sí importando desde los archivos `index.js` expuestos en la raíz de cada módulo.
+* **Separación Global:** La configuración estructural (`app/`), el enrutamiento centralizado y el kit de UI (`shared/`) viven estrictamente fuera de la lógica de negocio.
 
 ### 7.2. Aseguramiento de la Calidad (Testing)
 * **Backend:** JUnit 5 y Mockito para lógica financiera.

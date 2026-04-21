@@ -1438,3 +1438,23 @@ Se ha abordado la refactorización visual y lógica del módulo de Inteligencia 
 
 ### ⏭️ Próximos Pasos (Siguiente Sesión)
 * Desarrollo del **Generador de Informes**: Sistema de exportación y visualización de métricas estructuradas utilizando los datos consolidados en los resúmenes operativos.
+
+## [21/04/2026] 🏗️ Sistema de Diseño Global y Arquitectura Domain-Driven Modular
+
+### 🎨 Construcción del "Kit" de UI (Shadcn + Tailwind v4)
+* **Estandarización Visual:** Se ha finalizado la construcción de una librería de componentes UI propios en `src/shared/components/ui/`, basada en las primitivas de Radix UI y Shadcn.
+* **Componentes Aislados:** Se tradujeron e integraron componentes complejos (DataTables, Selects nativos y custom, Sliders, Toggle Groups, Toasters) asegurando que consumen estrictamente las variables CSS corporativas (`--color-primary`, `--color-surface`, etc.) sin inyectar estilos ajenos o colores hardcodeados.
+* **Playground de Pruebas:** Creación de un `Playground.jsx` (Sandbox) para validar el comportamiento, accesibilidad y diseño de todos los componentes de forma aislada antes de inyectarlos en la aplicación principal.
+
+### 🏛️ Debate Arquitectónico: FSD vs Domain-Driven Modular
+* **El Problema:** El frontend había crecido orgánicamente hasta convertirse en un "Frankenstein", mezclando llamadas a la API, lógica de negocio y renderizado UI en las mismas carpetas. Se necesitaba una arquitectura para escalar el ERP como SaaS/VPS.
+* **Evaluación de Feature-Sliced Design (FSD):** Se planteó migrar al estándar FSD (separando por *entities*, *features*, *widgets* y *pages*). Sin embargo, se detectó que esta abstracción creaba un "Impedance Mismatch" (desajuste de modelos) con el backend.
+* **La Decisión (Domain-Driven Modular):** Se descartó el FSD puro en favor de una **Arquitectura Modular orientada al Dominio**. El frontend ahora será un espejo exacto del backend en Spring Boot (`security`, `operations`, `organization`, `sales`, `documents`).
+* **Reglas de Seguridad Implementadas:** 1. **Alta Cohesión:** Servicios, hooks, componentes y páginas de un mismo dominio vivirán juntos en su respectiva carpeta modular.
+  2. **API Pública (Indexación):** Para evitar el código espagueti y las dependencias circulares, los módulos solo se comunicarán entre sí exponiendo estrictamente lo necesario a través de archivos `index.js`.
+  3. **Router Centralizado:** La navegación no estará dispersa; se orquestará globalmente desde la capa `app/`.
+
+### ⏭️ Próximos Pasos (Siguiente Sesión)
+* Creación de las carpetas modulares vacías en el frontend.
+* Reubicación progresiva de la lógica existente (`services` y `hooks`) a sus nuevos módulos.
+* Inicio del rediseño quirúrgico UI asistido por IA, sustituyendo etiquetas HTML estándar por los nuevos componentes atómicos de `shared/ui/` sin alterar la lógica de negocio subyacente.
