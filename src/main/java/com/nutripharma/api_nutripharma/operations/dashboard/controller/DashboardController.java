@@ -36,7 +36,8 @@ public class DashboardController {
             @RequestParam int anioFin,
             @RequestParam(required = false) Long farmaciaId,
             @RequestParam(required = false) Long nutricionistaId) {
-        return ResponseEntity.ok(dashboardService.obtenerFacturacionRango(anioInicio, anioFin, farmaciaId, nutricionistaId));
+        return ResponseEntity
+                .ok(dashboardService.obtenerFacturacionRango(anioInicio, anioFin, farmaciaId, nutricionistaId));
     }
 
     @GetMapping("/admin/calendario")
@@ -45,15 +46,6 @@ public class DashboardController {
             @RequestParam int anio,
             @RequestParam int mes) {
         return ResponseEntity.ok(dashboardService.obtenerEventosCalendario(anio, mes));
-    }
-
-    @GetMapping("/admin/auditoria/{nutricionistaId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<DashboardDTO.AuditoriaNutriDTO> obtenerAuditoriaNutricionista(
-            @PathVariable Long nutricionistaId,
-            @RequestParam int anio,
-            @RequestParam int mes) {
-        return ResponseEntity.ok(dashboardService.obtenerAuditoriaNutricionista(nutricionistaId, anio, mes));
     }
 
     @GetMapping("/admin/auditoria/{nutricionistaId}/meses")
@@ -70,7 +62,8 @@ public class DashboardController {
             @RequestParam(required = false) Integer mes,
             @RequestParam(required = false) Long farmaciaId,
             @RequestParam(required = false) Long nutricionistaId) {
-        return ResponseEntity.ok(dashboardService.obtenerRendimientoProductosRango(anioInicio, anioFin, mes, farmaciaId, nutricionistaId));
+        return ResponseEntity.ok(dashboardService.obtenerRendimientoProductosRango(anioInicio, anioFin, mes, farmaciaId,
+                nutricionistaId));
     }
 
     @PostMapping(value = "/admin/rendimiento-productos/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
@@ -84,7 +77,8 @@ public class DashboardController {
 
     @PostMapping(value = "/admin/facturacion/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> descargarInformeFacturacionPdf(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+    public ResponseEntity<byte[]> descargarInformeFacturacionPdf(
+            @RequestBody DashboardDTO.InformePdfRequestDTO request) {
         byte[] pdf = informePdfService.generarInformeFacturacionPdf(request);
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentDispositionFormData("attachment", "informe_facturacion_" + request.getAnioInicio() + ".pdf");
@@ -98,7 +92,8 @@ public class DashboardController {
             @RequestParam int anioFin,
             @RequestParam(required = false) Integer mes,
             @RequestParam(required = false) Long nutricionistaId) {
-        return ResponseEntity.ok(dashboardService.obtenerRendimientoClinicoRango(anioInicio, anioFin, mes, nutricionistaId));
+        return ResponseEntity
+                .ok(dashboardService.obtenerRendimientoClinicoRango(anioInicio, anioFin, mes, nutricionistaId));
     }
 
     @PostMapping(value = "/admin/clinico/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)

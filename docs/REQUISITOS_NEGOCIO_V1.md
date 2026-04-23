@@ -4,6 +4,8 @@
 **Objetivo:** Servir de fuente de verdad absoluta para el desarrollo, justificando el porqué de las decisiones técnicas y de negocio (alineado con BITACORA.md).
 
 ---
+**Entendiendo la lógica financiera de negocio: Es un sistema de fidelización en bucle cerrado (lock-in). Al obligar a un gasto mínimo real para liberar el saldo virtual, garantizas flujo de caja (cashflow) y rotación de inventario constante. Es la misma psicología que usan los casinos o las aerolíneas.**
+---
 
 ## 1. ARQUITECTURA DE ENTIDADES Y ACCESOS
 

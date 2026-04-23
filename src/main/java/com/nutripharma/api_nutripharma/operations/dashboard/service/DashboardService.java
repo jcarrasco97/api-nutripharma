@@ -106,8 +106,7 @@ public class DashboardService {
                         nu.precioVentaFarmacia(), // Mantenemos precios del año más reciente
                         nu.precioVentaPublico(),
                         ex.ingresosGeneradosPvf().add(nu.ingresosGeneradosPvf()),
-                        ex.ingresosPotencialesPvp().add(nu.ingresosPotencialesPvp())
-                ));
+                        ex.ingresosPotencialesPvp().add(nu.ingresosPotencialesPvp())));
             }
         }
 
@@ -130,7 +129,7 @@ public class DashboardService {
 
         // Totales consolidados por mes para el rango
         List<DashboardDTO.FacturacionMensualDTO> totalesMensuales = new ArrayList<>();
-        String[] nombresMeses = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
+        String[] nombresMeses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
 
         for (int i = 1; i <= 12; i++) {
             final int mesIdx = i;
@@ -145,7 +144,7 @@ public class DashboardService {
                 }
             }
             totalesMensuales.add(new DashboardDTO.FacturacionMensualDTO(
-                    nombresMeses[i-1], i, consultas, pedidos, consultas.add(pedidos)));
+                    nombresMeses[i - 1], i, consultas, pedidos, consultas.add(pedidos)));
         }
 
         return new DashboardDTO.ReporteJerarquicoDTO<>(totalesMensuales, desgloses);
@@ -169,7 +168,8 @@ public class DashboardService {
     // --- MÉTODOS DE APOYO Y AUDITORÍA ---
 
     @Transactional(readOnly = true)
-    public List<DashboardDTO.RendimientoClinicoDTO> obtenerRendimientoClinico(int anioI, int anioF, Integer mes, Long nutriId) {
+    public List<DashboardDTO.RendimientoClinicoDTO> obtenerRendimientoClinico(int anioI, int anioF, Integer mes,
+            Long nutriId) {
         LocalDate inicio = LocalDate.of(anioI, mes != null ? mes : 1, 1);
         LocalDate fin = (mes != null) ? YearMonth.of(anioF, mes).atEndOfMonth() : LocalDate.of(anioF, 12, 31);
 
@@ -177,7 +177,8 @@ public class DashboardService {
 
         return consultas.stream()
                 .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
-                .filter(c -> nutriId == null || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
+                .filter(c -> nutriId == null
+                        || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
                 .collect(Collectors.groupingBy(c -> c.getFarmacia().getNombre()))
                 .entrySet().stream()
                 .map(entry -> {
@@ -198,19 +199,22 @@ public class DashboardService {
         LocalDate fin = LocalDate.of(anio, 12, 31);
 
         List<Pedido> pedidos = pedidoRepository.findByFechaPedidoBetween(inicio, fin).stream()
-                .filter(p -> p.getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
+                .filter(p -> p
+                        .getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
                 .filter(p -> farmId == null || (p.getFarmacia() != null && p.getFarmacia().getId().equals(farmId)))
-                .filter(p -> nutriId == null || p.getRepartos().stream().anyMatch(r -> r.getNutricionista().getId().equals(nutriId)))
+                .filter(p -> nutriId == null
+                        || p.getRepartos().stream().anyMatch(r -> r.getNutricionista().getId().equals(nutriId)))
                 .toList();
 
         List<Consulta> consultas = consultaRepository.findByFechaBetween(inicio, fin).stream()
                 .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
                 .filter(c -> farmId == null || (c.getFarmacia() != null && c.getFarmacia().getId().equals(farmId)))
-                .filter(c -> nutriId == null || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
+                .filter(c -> nutriId == null
+                        || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
                 .toList();
 
         List<DashboardDTO.FacturacionMensualDTO> lista = new ArrayList<>();
-        String[] meses = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
+        String[] meses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
 
         for (int i = 1; i <= 12; i++) {
             final int m = i;
@@ -218,7 +222,8 @@ public class DashboardService {
                     .filter(p -> p.getFechaPedido().getMonthValue() == m)
                     .map(p -> {
                         BigDecimal total = calcularTotalPedido(p);
-                        if (nutriId == null) return total;
+                        if (nutriId == null)
+                            return total;
                         BigDecimal porc = p.getRepartos().stream()
                                 .filter(r -> r.getNutricionista().getId().equals(nutriId))
                                 .map(RepartoPedido::getPorcentaje).findFirst().orElse(BigDecimal.ZERO);
@@ -230,7 +235,8 @@ public class DashboardService {
                     .map(c -> new BigDecimal((c.getNuevas() * 25) + (c.getRevisiones() * 20)))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            lista.add(new DashboardDTO.FacturacionMensualDTO(meses[i-1], i, ingConsultas, ingPedidos, ingConsultas.add(ingPedidos)));
+            lista.add(new DashboardDTO.FacturacionMensualDTO(meses[i - 1], i, ingConsultas, ingPedidos,
+                    ingConsultas.add(ingPedidos)));
         }
         return lista;
     }
@@ -247,32 +253,26 @@ public class DashboardService {
         YearMonth ym = YearMonth.of(anio, mes);
         List<DashboardDTO.EventoCalendarioDTO> eventos = new ArrayList<>();
         pedidoRepository.findByFechaPedidoBetween(ym.atDay(1), ym.atEndOfMonth()).forEach(p -> {
-            eventos.add(new DashboardDTO.EventoCalendarioDTO("PED-"+p.getId(), "PEDIDO", "Pedido: " + (p.getFarmacia() != null ? p.getFarmacia().getNombre() : "N/A"), p.getFechaPedido(), p.getEstado().name(), calcularTotalPedido(p).setScale(2, RoundingMode.HALF_UP) + "€"));
+            eventos.add(new DashboardDTO.EventoCalendarioDTO("PED-" + p.getId(), "PEDIDO",
+                    "Pedido: " + (p.getFarmacia() != null ? p.getFarmacia().getNombre() : "N/A"), p.getFechaPedido(),
+                    p.getEstado().name(), calcularTotalPedido(p).setScale(2, RoundingMode.HALF_UP) + "€"));
         });
         consultaRepository.findByFechaBetween(ym.atDay(1), ym.atEndOfMonth()).forEach(c -> {
-            eventos.add(new DashboardDTO.EventoCalendarioDTO("CON-"+c.getId(), "CONSULTA", "Consulta: " + (c.getNutricionista() != null ? c.getNutricionista().getNombre() : "N/A"), c.getFecha(), c.getEstado().name(), c.getFarmacia() != null ? c.getFarmacia().getNombre() : "N/A"));
+            eventos.add(new DashboardDTO.EventoCalendarioDTO("CON-" + c.getId(), "CONSULTA",
+                    "Consulta: " + (c.getNutricionista() != null ? c.getNutricionista().getNombre() : "N/A"),
+                    c.getFecha(), c.getEstado().name(), c.getFarmacia() != null ? c.getFarmacia().getNombre() : "N/A"));
         });
         return eventos;
     }
 
-    @Transactional(readOnly = true)
-    public DashboardDTO.AuditoriaNutriDTO obtenerAuditoriaNutricionista(Long id, int anio, int mes) {
-        Nutricionista n = nutricionistaRepository.findById(id).orElseThrow();
-        YearMonth ym = YearMonth.of(anio, mes);
-        List<Consulta> cons = consultaRepository.findByNutricionistaIdAndEstadoAndFechaBetween(id, EstadoConsulta.VALIDADA, ym.atDay(1), ym.atEndOfMonth());
-        List<Pedido> peds = pedidoRepository.findByRepartosNutricionistaIdAndFechaPedidoBetween(id, ym.atDay(1), ym.atEndOfMonth());
-
-        BigDecimal factCons = new BigDecimal((cons.stream().mapToInt(Consulta::getNuevas).sum() * 25) + (cons.stream().mapToInt(Consulta::getRevisiones).sum() * 20));
-        BigDecimal factPeds = peds.stream().map(p -> calcularTotalPedido(p)).reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return new DashboardDTO.AuditoriaNutriDTO(0, cons.size(), peds.size(), factCons, factPeds);
-    }
-
+    // ESTÁS AL LÍMITE, PENDIENTE DE IRTE PAL LOBBY
     @Transactional(readOnly = true)
     public List<String> obtenerMesesActividadNutricionista(Long id) {
         Set<String> meses = new HashSet<>();
-        consultaRepository.findByNutricionistaId(id).forEach(c -> meses.add(String.format("%04d-%02d", c.getFecha().getYear(), c.getFecha().getMonthValue())));
-        pedidoRepository.findByRepartosNutricionistaId(id).forEach(p -> meses.add(String.format("%04d-%02d", p.getFechaPedido().getYear(), p.getFechaPedido().getMonthValue())));
+        consultaRepository.findByNutricionistaId(id).forEach(
+                c -> meses.add(String.format("%04d-%02d", c.getFecha().getYear(), c.getFecha().getMonthValue())));
+        pedidoRepository.findByRepartosNutricionistaId(id).forEach(p -> meses
+                .add(String.format("%04d-%02d", p.getFechaPedido().getYear(), p.getFechaPedido().getMonthValue())));
         return meses.stream().sorted(Comparator.reverseOrder()).toList();
     }
 }
