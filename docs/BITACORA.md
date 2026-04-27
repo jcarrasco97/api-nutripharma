@@ -1458,3 +1458,87 @@ Se ha abordado la refactorización visual y lógica del módulo de Inteligencia 
 * Creación de las carpetas modulares vacías en el frontend.
 * Reubicación progresiva de la lógica existente (`services` y `hooks`) a sus nuevos módulos.
 * Inicio del rediseño quirúrgico UI asistido por IA, sustituyendo etiquetas HTML estándar por los nuevos componentes atómicos de `shared/ui/` sin alterar la lógica de negocio subyacente.
+
+# [24/04/2026] 🎨 Cirugía UI: Migración a Shadcn, Tailwind v4 y "La Vacuna" Global
+
+Con la arquitectura modular ya definida, nos centramos en modernizar la capa visual utilizando nuestro propio kit de componentes basado en Shadcn y Radix UI, enfrentándonos a los retos de compatibilidad con Tailwind v4.
+
+---
+
+## 🛠️ El Desafío del Sidebar y Tailwind v4
+
+### El Problema del Móvil
+El panel lateral en su versión móvil (`SheetContent`) se resistía a adoptar las variables CSS corporativas y sus dimensiones colapsadas, debido a que Tailwind v4 procesa la precedencia de clases de forma distinta a la v3.
+
+### Solución Quirúrgica
+<!-- "Se forzaron las reglas CSS directamente en las clases para someter al componente interno" -->
+Se aplicaron reglas CSS con mayor especificidad directamente sobre las clases (`!bg-background !w-[var(--sidebar-width)]`) para alinear el comportamiento del componente en móvil y escritorio.
+
+### Restauración de Animaciones
+Al eliminar plugins antiguos de Tailwind, las animaciones nativas de Radix (modales, cajones deslizables) dejaron de funcionar. Se resolvió inyectando `@keyframes` puros (`slide-in-left`, `dialog-in`) directamente en el `@layer utilities` del `index.css`.
+
+---
+
+## 💉 La "Vacuna" Global CSS
+
+<!-- "Para evitar tener que refactorizar las animaciones componente a componente" -->
+Con el objetivo de no tener que intervenir en cada componente individualmente (Dropdowns, Selects, Accordions, Dialogs), se implementó una solución global en el `index.css`.
+
+### Mecanismo
+El CSS intercepta globalmente los atributos `[data-state="open"]` y `[data-state="closed"]` de Radix UI, inyectando las animaciones de transición (`pop-in`, `fade-in`) de forma automática a todo el ecosistema de componentes.
+
+> ✅ Esto validó con éxito todo el **Nivel Verde** de componentes en el `Playground.jsx`.
+
+---
+
+## 🤖 Metodología de Migración UI — El "Master Prompt"
+
+Para agilizar la migración visual de las vistas sin comprometer los hooks, estados ni peticiones Axios, se diseñó una metodología de ingeniería asistida por IA:
+
+<!-- "Se estableció un Master Prompt con reglas inquebrantables de Cero Lógica" -->
+Se definió un prompt de referencia con una regla central: **ninguna lógica de negocio debe ser modificada**.
+
+### Objetivo
+Realizar una sustitución uno-a-uno de etiquetas HTML estándar (`<div>`, `<input>`, `<button>`) por los componentes atómicos del ecosistema (`<Card>`, `<Field>`, `<Input>`, `<Button>`), manteniendo intactos los `onSubmit`, `onChange` y validaciones.
+
+---
+
+## 🔐 Refactorización del Módulo de Seguridad (Auth)
+
+Se aplicó la migración UI a `Login.jsx` y `ResetPassword.jsx`.
+
+### Branding
+Sustitución de fondos neutros por el gradiente corporativo e inyección del logotipo en un contenedor tipo `<Card>` elevado.
+
+### El Bug del "Ojo Fantasma"
+Al usar el `<Input type="password">` de Shadcn, los navegadores (Edge, Chrome) inyectaban su propio botón nativo de revelado de contraseña al teclear, duplicándose con el icono de Lucide.
+
+### Solución CSS
+<!-- "Se añadió una regla global para destruir la interfaz nativa del navegador" -->
+Se añadió una regla CSS global que suprime los controles nativos del navegador para campos de contraseña:
+
+```css
+::-ms-reveal,
+::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+```
+
+Esto delega el control visual al 100% al componente de React.
+
+---
+
+## 🗂️ Migración del Dominio de Documentos
+
+Aplicación exitosa del **Master Prompt v2** (orientado a vistas complejas) en el módulo de facturación y gastos.
+
+### Componentes Migrados
+- `DocumentacionPage` y sus Anexos
+- `PanelSubidaDocumentos`
+- `SubidaFacturas`
+- `ListadoFacturas`
+
+### Componentes Complejos
+Integración de los `<Select>` paramétricos anidados y estilización avanzada de los inputs de subida de archivos (`<Input type="file">`) utilizando pseudo-clases de Tailwind (`file:bg-secondary`).
+
+> ✅ La lógica de `FormData` y `window.confirm` permaneció inalterada, demostrando la eficacia de la **Separación de Responsabilidades (SoC)**.
