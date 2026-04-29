@@ -1517,7 +1517,7 @@ Al usar el `<Input type="password">` de Shadcn, los navegadores (Edge, Chrome) i
 <!-- "Se añadió una regla global para destruir la interfaz nativa del navegador" -->
 Se añadió una regla CSS global que suprime los controles nativos del navegador para campos de contraseña:
 
-```css
+``` css
 ::-ms-reveal,
 ::-webkit-credentials-auto-fill-button {
   display: none !important;
