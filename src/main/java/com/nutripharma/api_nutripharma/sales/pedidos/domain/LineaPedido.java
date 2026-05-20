@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.sales.pedidos.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nutripharma.api_nutripharma.sales.catalogo.domain.Producto;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,6 +25,7 @@ public class LineaPedido {
     // A qué pedido pertenece esta línea
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pedido_id", nullable = false)
+    @JsonIgnore
     private Pedido pedido;
 
     // Qué producto se está comprando

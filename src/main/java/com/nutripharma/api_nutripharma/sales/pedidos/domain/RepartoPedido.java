@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.sales.pedidos.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutricionista;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,6 +24,7 @@ public class RepartoPedido {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pedido_id", nullable = false)
+    @JsonIgnore
     private Pedido pedido;
 
     @ManyToOne(fetch = FetchType.LAZY)

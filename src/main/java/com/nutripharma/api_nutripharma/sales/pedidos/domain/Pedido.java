@@ -48,4 +48,7 @@ public class Pedido {
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<RepartoPedido> repartos = new ArrayList<>();
+
+    @Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

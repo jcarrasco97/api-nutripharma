@@ -32,6 +32,9 @@ public class Farmacia {
     @Column(nullable = false, unique = true, length = 20)
     private String cif;
 
+    @Column(length = 20)
+    private String telefono;
+
     @Column(length = 255)
     private String direccion;
 
