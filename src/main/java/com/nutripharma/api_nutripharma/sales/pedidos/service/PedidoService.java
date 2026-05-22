@@ -52,7 +52,8 @@ public class PedidoService {
                 .estado(EstadoPedido.PENDIENTE_ENVIO)
                 .lineas(new ArrayList<>())
                 .repartos(new ArrayList<>())
-                .creadoPor(usuarioActual) // <-- INYECCIÓN DE AUDITORÍA
+                .creadoPor(usuarioActual)
+                .observaciones(request.observaciones())
                 .build();
 
         // 1. LÓGICA DE REPARTO MULTICAPA
@@ -309,8 +310,9 @@ public class PedidoService {
                 calcularTotalRealPedido(p),
                 lineasResponse,
                 emailCreador,
-                nombreRealAutor, // <-- AHORA SÍ PASAMOS EL NOMBRE REAL TRADUCIDO
-                repartosResponse
+                nombreRealAutor,
+                repartosResponse,
+                p.getObservaciones()
         );
     }
 

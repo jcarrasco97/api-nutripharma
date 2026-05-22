@@ -7,9 +7,10 @@ public class FarmaciaDTO {
             String password,
             String nombre,
             String cif,
+            String telefono,
             String direccion,
             Boolean esProvinciaLocal,
-            Double porcentajeComision // <-- NUEVO
+            Double porcentajeComision
     ) {
     }
 
@@ -18,10 +19,11 @@ public class FarmaciaDTO {
             String email,
             String nombre,
             String cif,
+            String telefono,
             String direccion,
             Double saldoVirtual,
             Boolean esProvinciaLocal,
-            Double porcentajeComision // <-- NUEVO
+            Double porcentajeComision
     ) {
     }
 
@@ -30,9 +32,10 @@ public class FarmaciaDTO {
             String password,
             String nombre,
             String cif,
+            String telefono,
             String direccion,
             Boolean esProvinciaLocal,
-            Double porcentajeComision // <-- NUEVO
+            Double porcentajeComision
     ) {
     }
 }

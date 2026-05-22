@@ -43,7 +43,8 @@ public class FacturaGastoService {
         
         String nombreGenerado = fechaStr + "_Km_" + nombreSeguro + "_" + apellidosSeguros + extension;
 
-        String driveFileId = googleDriveService.subirFactura(archivo, nombreGenerado);
+        String carpetaNutri = nombreSeguro + "_" + apellidosSeguros;
+        String driveFileId = googleDriveService.subirFactura(archivo, nombreGenerado, "Facturas", carpetaNutri);
 
         FacturaGasto factura = FacturaGasto.builder()
                 .nutricionista(nutricionista)

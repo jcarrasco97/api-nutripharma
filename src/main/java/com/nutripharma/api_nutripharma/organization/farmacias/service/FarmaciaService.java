@@ -66,6 +66,7 @@ public class FarmaciaService {
                 .usuario(nuevoUsuario)
                 .nombre(request.nombre())
                 .cif(request.cif())
+                .telefono(request.telefono())
                 .direccion(request.direccion())
                 .esProvinciaLocal(request.esProvinciaLocal() != null ? request.esProvinciaLocal() : true)
                 .porcentajeComision(request.porcentajeComision() != null ? request.porcentajeComision() : 30.0)
@@ -105,6 +106,7 @@ public class FarmaciaService {
         // --- Actualizaci\u00f3n de datos de la Farmacia ---
         f.setNombre(request.nombre());
         f.setCif(request.cif());
+        f.setTelefono(request.telefono());
         f.setDireccion(request.direccion());
         f.setEsProvinciaLocal(request.esProvinciaLocal());
 
@@ -148,10 +150,11 @@ public class FarmaciaService {
                 f.getUsuario().getEmail(),
                 f.getNombre(),
                 f.getCif(),
+                f.getTelefono(),
                 f.getDireccion(),
                 f.getSaldoVirtual(),
                 f.getEsProvinciaLocal(),
-                f.getPorcentajeComision() // <-- NUEVO
+                f.getPorcentajeComision()
         );
     }
 

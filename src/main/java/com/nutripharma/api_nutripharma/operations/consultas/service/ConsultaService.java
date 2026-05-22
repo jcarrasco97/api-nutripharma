@@ -260,7 +260,27 @@ public class ConsultaService {
             throw new SecurityException("No tienes permiso para adjuntar evidencias a este turno.");
         }
 
-        String driveFileId = googleDriveService.subirEvidencia(archivo, consultaId);
+        // Calcular carpeta: Agendas/{nombre nutricionista}/{año-mes de la consulta}
+        String nombreNutri = consulta.getNutricionista() != null
+                ? consulta.getNutricionista().getNombre() + " " + consulta.getNutricionista().getApellidos()
+                : "Desconocido";
+        String mesAnio = consulta.getFecha() != null
+                ? consulta.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+                : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+
+        // Nombre del archivo: dd-MM-yy-TurnoID-Nombre_Nutricionista.ext
+        String fechaTurno = consulta.getFecha() != null
+                ? consulta.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yy"))
+                : "sin-fecha";
+        String nombreSeguro = nombreNutri.replaceAll("\\s+", "_");
+        String extension = "";
+        String originalFilename = archivo.getOriginalFilename();
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        String nombreArchivo = fechaTurno + "-Turno" + consultaId + "-" + nombreSeguro + extension;
+
+        String driveFileId = googleDriveService.subirEvidencia(archivo, nombreArchivo, "Agendas", nombreNutri, mesAnio);
         consulta.setEvidenciaUrl(driveFileId);
         consulta.setEvidenciaFecha(java.time.LocalDateTime.now());
         consultaRepository.save(consulta);

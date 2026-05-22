@@ -43,6 +43,12 @@ public class PersonalInternoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ResponseEntity<AdminResponse> actualizarAdmin(@PathVariable Long id, @RequestBody AdminRequest request) {
+        return ResponseEntity.ok(personalInternoService.actualizarAdmin(id, request.email(), request.password(), request.nombre(), request.apellidos()));
+    }
+
     @GetMapping("/admin/bajas")
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<List<com.nutripharma.api_nutripharma.organization.personal.repository.AdministradorRepository.AdminInactivoProjection>> listarBajas() {

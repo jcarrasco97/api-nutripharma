@@ -40,7 +40,8 @@ public class PedidoDTO {
             Long farmaciaId,
             LocalDate fechaPedido,
             List<LineaPedidoRequest> lineas,
-            List<RepartoRequest> repartos // <-- Ahora recibimos la lista de quién se lleva cuánto
+            List<RepartoRequest> repartos,
+            String observaciones
     ) {}
 
     public record PedidoResponse(
@@ -52,6 +53,7 @@ public class PedidoDTO {
             List<LineaPedidoResponse> lineas,
             String creadoPor,
             String creadoPorNombre,
-            List<RepartoResponse> repartos // <-- Devolvemos el desglose
+            List<RepartoResponse> repartos,
+            String observaciones
     ) {}
 }

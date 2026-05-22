@@ -65,6 +65,32 @@ public class PersonalInternoService {
     }
 
     @Transactional
+    public PersonalInternoController.AdminResponse actualizarAdmin(Long id, String email, String password, String nombre, String apellidos) {
+        Administrador admin = administradorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Administrador no encontrado."));
+
+        // Actualizar datos de identidad
+        if (nombre != null && !nombre.isBlank()) admin.setNombre(nombre);
+        if (apellidos != null && !apellidos.isBlank()) admin.setApellidos(apellidos);
+
+        // Actualizar credenciales
+        Usuario usuario = admin.getUsuario();
+        if (email != null && !email.isBlank() && !email.equals(usuario.getEmail())) {
+            if (usuarioRepository.existsByEmail(email)) {
+                throw new IllegalArgumentException("El email ya está registrado por otro usuario.");
+            }
+            usuario.setEmail(email);
+        }
+        if (password != null && !password.isBlank()) {
+            usuario.setPassword(passwordEncoder.encode(password));
+        }
+        usuarioRepository.save(usuario);
+        administradorRepository.save(admin);
+
+        return new PersonalInternoController.AdminResponse(admin.getId(), usuario.getEmail(), admin.getNombre(), admin.getApellidos());
+    }
+
+    @Transactional
     public void eliminarAdmin(Long id) {
         Administrador admin = administradorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Administrador no encontrado."));

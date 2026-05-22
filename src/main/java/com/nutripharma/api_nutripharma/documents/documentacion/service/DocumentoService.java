@@ -27,13 +27,22 @@ public class DocumentoService {
 
     @Transactional
     public DocumentoResponse subirDocumento(String alcanceStr, String propietarioEmail, MultipartFile archivo) throws IOException, GeneralSecurityException {
-        // 1. Subir a Google Drive
-        String driveFileId = googleDriveService.subirArchivo(archivo);
-
         AlcanceDocumento alcance = AlcanceDocumento.valueOf(alcanceStr);
+
+        // 1. Calcular subcarpeta de Drive según el alcance
+        String[] folderPath = switch (alcance) {
+            case GLOBAL_TODOS          -> new String[]{"Documentos", "Todos"};
+            case GLOBAL_NUTRICIONISTAS -> new String[]{"Documentos", "Nutricionistas"};
+            case GLOBAL_FARMACIAS      -> new String[]{"Documentos", "Farmacias"};
+            case INDIVIDUAL            -> new String[]{"Documentos", "Individual", propietarioEmail != null ? propietarioEmail : "sin_destinatario"};
+        };
+
+        // 2. Subir a Google Drive (las carpetas se crean automáticamente si no existen)
+        String driveFileId = googleDriveService.subirArchivo(archivo, folderPath);
+
         Usuario propietario = null;
 
-        // 2. Buscar dueño si es INDIVIDUAL
+        // 3. Buscar dueño si es INDIVIDUAL
         if (alcance == AlcanceDocumento.INDIVIDUAL && propietarioEmail != null && !propietarioEmail.isEmpty()) {
             propietario = usuarioRepository.findByEmail(propietarioEmail)
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
