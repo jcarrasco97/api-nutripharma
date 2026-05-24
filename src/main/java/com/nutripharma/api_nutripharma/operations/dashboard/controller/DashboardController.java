@@ -2,6 +2,7 @@ package com.nutripharma.api_nutripharma.operations.dashboard.controller;
 
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.ResumenMensualNutricionista;
 import com.nutripharma.api_nutripharma.operations.dashboard.service.DashboardService;
+import com.nutripharma.api_nutripharma.operations.dashboard.service.InformeExcelService;
 import com.nutripharma.api_nutripharma.operations.dashboard.service.InformePdfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,9 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final InformePdfService informePdfService;
+    private final InformeExcelService informeExcelService;
+
+    private static final String EXCEL_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     @GetMapping("/nutricionistas/{id}/resumen")
     @PreAuthorize("hasRole('ADMIN') or hasRole('NUTRICIONISTA')")
@@ -103,5 +107,36 @@ public class DashboardController {
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentDispositionFormData("attachment", "informe_clinico_" + request.getAnioInicio() + ".pdf");
         return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // ENDPOINTS DE INFORMES EXCEL (.xlsx)
+    // ─────────────────────────────────────────────────────────────────────
+
+    @PostMapping(value = "/admin/rendimiento-productos/excel", produces = EXCEL_MIME)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> descargarInformeProductosExcel(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+        byte[] xlsx = informeExcelService.generarInformeRendimientoProductosExcel(request);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentDispositionFormData("attachment", "informe_productos_" + request.getAnioInicio() + ".xlsx");
+        return ResponseEntity.ok().headers(headers).body(xlsx);
+    }
+
+    @PostMapping(value = "/admin/facturacion/excel", produces = EXCEL_MIME)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> descargarInformeFacturacionExcel(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+        byte[] xlsx = informeExcelService.generarInformeFacturacionExcel(request);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentDispositionFormData("attachment", "informe_facturacion_" + request.getAnioInicio() + ".xlsx");
+        return ResponseEntity.ok().headers(headers).body(xlsx);
+    }
+
+    @PostMapping(value = "/admin/clinico/excel", produces = EXCEL_MIME)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> descargarInformeClinicoExcel(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+        byte[] xlsx = informeExcelService.generarInformeClinicoExcel(request);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentDispositionFormData("attachment", "informe_clinico_" + request.getAnioInicio() + ".xlsx");
+        return ResponseEntity.ok().headers(headers).body(xlsx);
     }
 }

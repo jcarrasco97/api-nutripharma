@@ -22,6 +22,7 @@ import java.util.List;
 public class InformePdfService {
 
     private final DashboardService dashboardService;
+    private final InformeGraficaService informeGraficaService;
 
     public byte[] generarInformeRendimientoProductosPdf(InformePdfRequestDTO request) {
         DashboardDTO.ReporteJerarquicoDTO<List<RendimientoProductoDTO>> reporte = dashboardService.obtenerRendimientoProductosRango(
@@ -96,7 +97,22 @@ public class InformePdfService {
 
         try {
             agregarCabecera(document, "RESUMEN DE FACTURACIÓN Y CONVERSIÓN", request);
-            agregarGrafica(document, request.getGraficaBase64());
+
+            // Gráfica: si hay rango de 2 años usamos server-side (YoY).
+            // Si el cliente no envía graficaBase64, también caemos a server-side cuando sea posible.
+            boolean rangoDosAnios = request.getAnioInicio() != request.getAnioFin()
+                    && reporte.desglosesPorAnio() != null
+                    && reporte.desglosesPorAnio().size() == 2;
+            boolean sinGraficaCliente = request.getGraficaBase64() == null || request.getGraficaBase64().isBlank();
+
+            if (rangoDosAnios) {
+                byte[] pngServerSide = informeGraficaService.generarGraficaFacturacionYoY(reporte);
+                agregarGraficaDesdeBytes(document, pngServerSide);
+            } else if (sinGraficaCliente) {
+                // Sin gráfica disponible: omitimos.
+            } else {
+                agregarGrafica(document, request.getGraficaBase64());
+            }
 
             Font fontSubtitulo = new Font(Font.HELVETICA, 12, Font.BOLD);
             
@@ -222,18 +238,26 @@ public class InformePdfService {
         try {
             if (graficaBase64 != null && graficaBase64.contains(",")) {
                 byte[] imageBytes = Base64.getDecoder().decode(graficaBase64.split(",")[1]);
-                Image chartImage = Image.getInstance(imageBytes);
-
-                // Forzar escalado al 100% del ancho disponible entre márgenes
-                float usableWidth = document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin();
-                chartImage.scaleToFit(usableWidth, 500f);
-                chartImage.setAlignment(Element.ALIGN_CENTER);
-
-                document.add(chartImage);
-                document.add(new Paragraph(" "));
+                agregarGraficaDesdeBytes(document, imageBytes);
             }
         } catch (Exception e) {
             System.err.println("Error al incrustar gráfica: " + e.getMessage());
+        }
+    }
+
+    private void agregarGraficaDesdeBytes(Document document, byte[] imageBytes) {
+        try {
+            if (imageBytes == null || imageBytes.length == 0) return;
+            Image chartImage = Image.getInstance(imageBytes);
+
+            float usableWidth = document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin();
+            chartImage.scaleToFit(usableWidth, 500f);
+            chartImage.setAlignment(Element.ALIGN_CENTER);
+
+            document.add(chartImage);
+            document.add(new Paragraph(" "));
+        } catch (Exception e) {
+            System.err.println("Error al incrustar gráfica desde bytes: " + e.getMessage());
         }
     }
 }

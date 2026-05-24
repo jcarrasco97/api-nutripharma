@@ -119,6 +119,20 @@
             <artifactId>openpdf</artifactId>
             <version>1.3.30</version>
         </dependency>
+
+        <!-- Apache POI para generación de informes Excel (.xlsx) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
+        <!-- JFreeChart para gráficas server-side embebidas en informes -->
+        <dependency>
+            <groupId>org.jfree</groupId>
+            <artifactId>jfreechart</artifactId>
+            <version>1.5.4</version>
+        </dependency>
     </dependencies>
 
     <build>

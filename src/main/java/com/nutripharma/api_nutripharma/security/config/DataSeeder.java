@@ -1,7 +1,7 @@
 package com.nutripharma.api_nutripharma.security.config;
 
-import com.nutripharma.api_nutripharma.sales.suministros.domain.Material;
-import com.nutripharma.api_nutripharma.sales.suministros.repository.MaterialRepository;
+// import com.nutripharma.api_nutripharma.sales.suministros.domain.Material;
+// import com.nutripharma.api_nutripharma.sales.suministros.repository.MaterialRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import com.nutripharma.api_nutripharma.security.repository.RolRepository;
@@ -24,21 +24,22 @@ public class DataSeeder implements CommandLineRunner {
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // AÑADIDO: Inyectamos el repositorio de Materiales
-    private final MaterialRepository materialRepository;
+    // Los materiales ya no se siembran desde aquí — gestionado por data.sql
+    // private final MaterialRepository materialRepository;
 
     @Override
     @Transactional
     public void run(String... args) {
         log.info("Iniciando la validación y siembra de datos maestros de Seguridad...");
 
-        // 1. Asegurar la existencia de los roles base del sistema (RBAC)
-        Rol superAdminRol = crearRolSiNoExiste("ROLE_SUPERADMIN"); // <-- AÑADIDO
+        // Los roles base los crea data.sql. Los recuperamos aquí solo para
+        // asignárselos al usuario administrador principal.
+        Rol superAdminRol = crearRolSiNoExiste("ROLE_SUPERADMIN");
         Rol adminRol = crearRolSiNoExiste("ROLE_ADMIN");
-        crearRolSiNoExiste("ROLE_NUTRICIONISTA");
-        crearRolSiNoExiste("ROLE_FARMACIA");
+        // crearRolSiNoExiste("ROLE_NUTRICIONISTA"); // gestionado por data.sql
+        // crearRolSiNoExiste("ROLE_FARMACIA");      // gestionado por data.sql
 
-        // 2. Asegurar la existencia del usuario administrador principal (Paco)
+        // Asegurar la existencia del usuario administrador principal (Paco)
         String adminEmail = "admin@nutripharma.com";
 
         if (!usuarioRepository.existsByEmail(adminEmail)) {
@@ -46,8 +47,7 @@ public class DataSeeder implements CommandLineRunner {
                     .email(adminEmail)
                     .password(passwordEncoder.encode("admin123"))
                     .activo(true)
-                    // Le damos los 3 sombreros: SuperAdmin y Admin
-                    .roles(Set.of(superAdminRol, adminRol)) // <-- ACTUALIZADO
+                    .roles(Set.of(superAdminRol, adminRol))
                     .build();
 
             usuarioRepository.save(adminUser);
@@ -56,18 +56,22 @@ public class DataSeeder implements CommandLineRunner {
             log.info("El usuario administrador base ya existe. Omitiendo creación.");
         }
 
-        // 3. AÑADIDO: Sembrar el catálogo de Materiales inicial si la tabla está vacía
-        if (materialRepository.count() == 0) {
-            log.info("Sembrando el catálogo de suministros y materiales corporativos...");
-            materialRepository.save(Material.builder().nombre("Folletos Promocionales").cantidadEstandar(100).build());
-            materialRepository.save(Material.builder().nombre("Báscula Bioimpedancia (Repuesto)").cantidadEstandar(1).build());
-            materialRepository.save(Material.builder().nombre("Cinta Métrica").cantidadEstandar(5).build());
-            materialRepository.save(Material.builder().nombre("Bolígrafos Corporativos").cantidadEstandar(50).build());
-            materialRepository.save(Material.builder().nombre("Tacos de Recetas (Dietas)").cantidadEstandar(10).build());
-            log.info("Catálogo de materiales sembrado con éxito.");
-        }
+        // El catálogo de materiales y el resto de datos maestros
+        // se cargan desde data.sql al arrancar la aplicación.
+        // if (materialRepository.count() == 0) {
+        //     log.info("Sembrando el catálogo de suministros y materiales corporativos...");
+        //     materialRepository.save(Material.builder().nombre("Hojas de dietas").cantidadEstandar(50).build());
+        //     materialRepository.save(Material.builder().nombre("Folios").cantidadEstandar(100).build());
+        //     materialRepository.save(Material.builder().nombre("Semillas").cantidadEstandar(10).build());
+        //     materialRepository.save(Material.builder().nombre("Tóner de impresora").cantidadEstandar(1).build());
+        //     materialRepository.save(Material.builder().nombre("Resistencias").cantidadEstandar(5).build());
+        //     materialRepository.save(Material.builder().nombre("Agenda").cantidadEstandar(1).build());
+        //     log.info("Catálogo de materiales sembrado con éxito.");
+        // }
     }
 
+    // Este método es seguro aunque los roles ya existan en BD:
+    // findByNombre los recupera sin duplicar, y solo crea si no existen.
     private Rol crearRolSiNoExiste(String nombreRol) {
         return rolRepository.findByNombre(nombreRol)
                 .orElseGet(() -> {

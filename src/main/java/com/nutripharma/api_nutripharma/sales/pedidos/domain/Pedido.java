@@ -25,7 +25,7 @@ public class Pedido {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "farmacia_id", nullable = false)
-    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE) // <-- AÑADIR ESTO
+
     private Farmacia farmacia;
 
     @Column(name = "fecha_pedido", nullable = false)

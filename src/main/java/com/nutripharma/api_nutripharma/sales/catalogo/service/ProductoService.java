@@ -118,8 +118,9 @@ public class ProductoService {
     }
     @Transactional
     public void guardarOrdenRecomendado(List<Long> productIds) {
-        // 1. Limpiamos el orden anterior
-        ordenPorDefectoRepository.deleteAll();
+        // deleteAllInBatch genera un "DELETE FROM productos_recomendados" puro (sin cargar entidades)
+        // evitando el conflicto UNIQUE que produce deleteAll() + IDENTITY inserts
+        ordenPorDefectoRepository.deleteAllInBatch();
 
         // 2. Insertamos el nuevo orden
         List<OrdenPorDefectoProducto> nuevasRecoms = new ArrayList<>();

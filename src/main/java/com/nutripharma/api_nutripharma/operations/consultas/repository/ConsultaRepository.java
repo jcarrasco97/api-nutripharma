@@ -28,6 +28,13 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
             LocalDate fechaFin
     );
 
+    List<Consulta> findByNutricionistaIdAndEstadoInAndFechaBetween(
+            Long nutricionistaId,
+            java.util.Collection<EstadoConsulta> estados,
+            LocalDate fechaInicio,
+            LocalDate fechaFin
+    );
+
     // 👇 QUERY SENIOR: Detecta solapamientos horarios excluyendo cancelados
     @Query("SELECT COUNT(c) > 0 FROM Consulta c " +
             "WHERE c.nutricionista.id = :nutriId " +

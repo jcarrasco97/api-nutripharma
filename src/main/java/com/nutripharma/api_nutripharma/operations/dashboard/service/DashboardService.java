@@ -44,11 +44,13 @@ public class DashboardService {
         LocalDate inicio = yearMonth.atDay(1);
         LocalDate fin = yearMonth.atEndOfMonth();
 
-        List<Consulta> consultasMes = consultaRepository.findByNutricionistaIdAndEstadoAndFechaBetween(
-                nutricionistaId, EstadoConsulta.VALIDADA, inicio, fin);
+        List<Consulta> consultasMes = consultaRepository.findByNutricionistaIdAndEstadoInAndFechaBetween(
+                nutricionistaId, List.of(EstadoConsulta.VALIDADA, EstadoConsulta.LIQUIDADA), inicio, fin);
 
         List<Pedido> pedidosMes = pedidoRepository.findByRepartosNutricionistaIdAndFechaPedidoBetween(
-                nutricionistaId, inicio, fin);
+                nutricionistaId, inicio, fin).stream()
+                .filter(p -> p.getEstado() == com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.ENVIADO)
+                .toList();
 
         long totalMinutos = consultasMes.stream()
                 .mapToLong(c -> Duration.between(c.getHoraInicio(), c.getHoraFin()).toMinutes())
@@ -176,7 +178,8 @@ public class DashboardService {
         List<Consulta> consultas = consultaRepository.findByFechaBetween(inicio, fin);
 
         return consultas.stream()
-                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
+                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA
+                        || c.getEstado() == EstadoConsulta.LIQUIDADA)
                 .filter(c -> nutriId == null
                         || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
                 .collect(Collectors.groupingBy(c -> c.getFarmacia().getNombre()))
@@ -200,14 +203,15 @@ public class DashboardService {
 
         List<Pedido> pedidos = pedidoRepository.findByFechaPedidoBetween(inicio, fin).stream()
                 .filter(p -> p
-                        .getEstado() != com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.CANCELADO)
+                        .getEstado() == com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.ENVIADO)
                 .filter(p -> farmId == null || (p.getFarmacia() != null && p.getFarmacia().getId().equals(farmId)))
                 .filter(p -> nutriId == null
                         || p.getRepartos().stream().anyMatch(r -> r.getNutricionista().getId().equals(nutriId)))
                 .toList();
 
         List<Consulta> consultas = consultaRepository.findByFechaBetween(inicio, fin).stream()
-                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA)
+                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA
+                        || c.getEstado() == EstadoConsulta.LIQUIDADA)
                 .filter(c -> farmId == null || (c.getFarmacia() != null && c.getFarmacia().getId().equals(farmId)))
                 .filter(c -> nutriId == null
                         || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
@@ -243,6 +247,7 @@ public class DashboardService {
 
     private BigDecimal calcularTotalPedido(Pedido pedido) {
         return pedido.getLineas().stream()
+                .filter(l -> l.getPagadoConSaldo() == null || !l.getPagadoConSaldo())
                 .map(l -> l.getPrecioAplicado().multiply(new BigDecimal(l.getCantidad())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
