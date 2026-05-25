@@ -27,6 +27,12 @@ INSERT INTO `roles` (`id`, `nombre`) VALUES
   (4, 'ROLE_SUPERADMIN');
 
 -- ============================================================================
+-- 1.5 CONFIGURACION GLOBAL
+-- ============================================================================
+INSERT INTO `configuracion_global` (`id`, `limite_monedero`) VALUES (1, 80.00);
+
+
+-- ============================================================================
 -- 2. USUARIOS
 -- ============================================================================
 -- Fuente: generados para dar soporte a las entidades nutricionista y farmacia.
