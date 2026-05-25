@@ -82,7 +82,9 @@ public class ConsultaController {
                 request.nuevas(),
                 request.revisiones(),
                 request.promociones(),
-                request.personalFarmacia()
+                request.personalFarmacia(),
+                request.horaInicio(),
+                request.horaFin()
         ));
     }
 

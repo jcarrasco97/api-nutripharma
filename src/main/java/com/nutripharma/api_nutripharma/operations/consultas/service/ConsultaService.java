@@ -111,12 +111,20 @@ public class ConsultaService {
     }
 
     @Transactional
-    public ConsultaResponse editarYValidarTurnoAdmin(Long id, Integer nuevas, Integer revisiones, Integer promociones, Integer personalFarmacia) {
+    public ConsultaResponse editarYValidarTurnoAdmin(Long id, Integer nuevas, Integer revisiones, Integer promociones, Integer personalFarmacia, java.time.LocalTime horaInicio, java.time.LocalTime horaFin) {
         Consulta consulta = consultaRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
             throw new IllegalStateException("No se puede editar una consulta cancelada.");
+        }
+
+        if (horaInicio != null && horaFin != null) {
+            if (!horaFin.isAfter(horaInicio)) {
+                throw new IllegalArgumentException("La hora de salida debe ser posterior a la de entrada.");
+            }
+            consulta.setHoraInicio(horaInicio);
+            consulta.setHoraFin(horaFin);
         }
 
         if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
