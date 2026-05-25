@@ -24,8 +24,8 @@ public class ApplicationConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // Inyectamos la dependencia en el constructor en lugar de usar un Setter vacío
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(customUserDetailsService);
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(customUserDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
