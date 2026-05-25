@@ -34,6 +34,7 @@ build/
 # --- Nutripharma Custom ---
 # SEGURIDAD: No subir credenciales de DB ni claves de la API de Gemini
 src/main/resources/application.properties
+src/main/resources/application-prod.properties
 src/main/resources/google-drive-credentials.json
 .env
 *.log

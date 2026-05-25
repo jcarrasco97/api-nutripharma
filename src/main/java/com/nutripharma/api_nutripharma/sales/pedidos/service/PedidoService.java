@@ -22,6 +22,7 @@ import com.nutripharma.api_nutripharma.organization.personal.repository.Administ
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,7 +41,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponse crearPedido(PedidoRequest request) {
         Farmacia farmacia = farmaciaRepository.findById(request.farmaciaId())
-                .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Farmacia no encontrada"));
 
         // 🛡️ SEGURIDAD: Extraemos la identidad inviolable del token JWT
         String usuarioActual = org.springframework.security.core.context.SecurityContextHolder
@@ -61,7 +62,7 @@ public class PedidoService {
             BigDecimal sumaPorcentajes = BigDecimal.ZERO;
             for (RepartoRequest repReq : request.repartos()) {
                 Nutricionista n = nutricionistaRepository.findById(repReq.nutricionistaId())
-                        .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado para el reparto"));
+                        .orElseThrow(() -> new NoSuchElementException("Nutricionista no encontrado para el reparto"));
 
                 RepartoPedido reparto = RepartoPedido.builder()
                         .pedido(nuevoPedido)
@@ -84,7 +85,7 @@ public class PedidoService {
         // 2. LÍNEAS DE PEDIDO
         for (LineaPedidoRequest lineaReq : request.lineas()) {
             Producto producto = productoRepository.findById(lineaReq.productoId())
-                    .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + lineaReq.productoId()));
+                    .orElseThrow(() -> new NoSuchElementException("Producto no encontrado: " + lineaReq.productoId()));
 
             boolean pagadoConSaldo = lineaReq.pagadoConSaldo() != null && lineaReq.pagadoConSaldo();
             BigDecimal precioAplicable = farmacia.getEsProvinciaLocal() ? producto.getPvf() : producto.getPvp();
@@ -127,7 +128,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponse cancelarPedidoAdmin(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado"));
 
         if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
             throw new IllegalStateException("Solo se pueden cancelar pedidos pendientes de envío.");
@@ -166,7 +167,7 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public PedidoResponse obtenerPorId(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado"));
         return mapToResponse(pedido);
     }
 
@@ -188,7 +189,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponse marcarComoEnviado(Long id, List<RepartoRequest> repartos) {
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado"));
 
         if (pedido.getEstado() != EstadoPedido.PENDIENTE_ENVIO) {
             throw new IllegalStateException("El pedido no está pendiente de envío.");
@@ -201,7 +202,7 @@ public class PedidoService {
 
             for (RepartoRequest repReq : repartos) {
                 Nutricionista n = nutricionistaRepository.findById(repReq.nutricionistaId())
-                        .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado para el reparto"));
+                        .orElseThrow(() -> new NoSuchElementException("Nutricionista no encontrado para el reparto"));
 
                 RepartoPedido reparto = RepartoPedido.builder()
                         .pedido(pedido)
@@ -226,12 +227,14 @@ public class PedidoService {
         // Usamos tu método privado para calcular el importe real de forma segura
         double totalReal = calcularTotalRealPedido(pedidoGuardado).doubleValue();
 
-        eventPublisher.publishEvent(new PedidoConfirmadoEvent(
-                pedidoGuardado.getId(),
-                pedidoGuardado.getFarmacia().getUsuario().getEmail(),
-                pedidoGuardado.getFarmacia().getNombre(),
-                totalReal
-        ));
+        if (pedidoGuardado.getFarmacia() != null && pedidoGuardado.getFarmacia().getUsuario() != null) {
+            eventPublisher.publishEvent(new PedidoConfirmadoEvent(
+                    pedidoGuardado.getId(),
+                    pedidoGuardado.getFarmacia().getUsuario().getEmail(),
+                    pedidoGuardado.getFarmacia().getNombre(),
+                    totalReal
+            ));
+        }
 
         return mapToResponse(pedidoGuardado);
     }

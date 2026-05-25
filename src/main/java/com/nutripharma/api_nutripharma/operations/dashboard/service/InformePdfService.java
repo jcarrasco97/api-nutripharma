@@ -157,9 +157,93 @@ public class InformePdfService {
         document.add(table);
     }
 
+    public byte[] generarInformeVentasPorFarmaciaPdf(InformePdfRequestDTO request) {
+        List<DashboardDTO.FacturacionPorFarmaciaDTO> farmacias =
+                dashboardService.obtenerVentasPorFarmacia(request.getAnioInicio(), request.getAnioFin(), request.getNutricionistaId());
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document document = new Document();
+        PdfWriter.getInstance(document, out);
+        document.open();
+
+        try {
+            Font fontTitulo = new Font(Font.HELVETICA, 13, Font.BOLD);
+            Font fontSubtitulo = new Font(Font.HELVETICA, 11, Font.BOLD);
+            Font fontMeta = new Font(Font.HELVETICA, 9, Font.NORMAL);
+            String rango = request.getAnioInicio() == request.getAnioFin()
+                    ? String.valueOf(request.getAnioInicio())
+                    : request.getAnioInicio() + " - " + request.getAnioFin();
+
+            boolean primera = true;
+            for (DashboardDTO.FacturacionPorFarmaciaDTO item : farmacias) {
+                if (!primera) document.newPage();
+                primera = false;
+
+                document.add(new Paragraph("Ventas entre los años " + rango + " del centro " + item.farmaciaNombre(), fontTitulo));
+                document.add(new Paragraph("Generado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), fontMeta));
+                document.add(new Paragraph(" "));
+
+                boolean dosAnios = request.getAnioInicio() != request.getAnioFin()
+                        && item.reporte().desglosesPorAnio() != null
+                        && item.reporte().desglosesPorAnio().size() == 2;
+                try {
+                    byte[] chartBytes = dosAnios
+                            ? informeGraficaService.generarGraficaFacturacionYoY(item.reporte())
+                            : informeGraficaService.generarGraficaFarmaciaSingleYear(
+                                    item.reporte().desglosesPorAnio() != null && !item.reporte().desglosesPorAnio().isEmpty()
+                                            ? item.reporte().desglosesPorAnio().get(0).datos()
+                                            : item.reporte().totalesRango(),
+                                    request.getAnioInicio());
+                    agregarGraficaDesdeBytes(document, chartBytes);
+                } catch (Exception e) {
+                    System.err.println("Gráfica omitida para " + item.farmaciaNombre() + ": " + e.getMessage());
+                }
+
+                if (item.reporte().desglosesPorAnio() != null) {
+                    for (DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> desglose : item.reporte().desglosesPorAnio()) {
+                        document.add(new Paragraph("Año " + desglose.anio(), fontSubtitulo));
+                        document.add(new Paragraph(" "));
+                        renderizarTablaFacturacion(document, desglose.datos());
+                    }
+                }
+            }
+
+            if (!farmacias.isEmpty()) {
+                document.newPage();
+                document.add(new Paragraph("Ventas entre los años " + rango + " de todos los centros", fontTitulo));
+                document.add(new Paragraph(" "));
+
+                DashboardDTO.ReporteJerarquicoDTO<List<FacturacionMensualDTO>> total =
+                        dashboardService.obtenerFacturacionRango(request.getAnioInicio(), request.getAnioFin(), null, request.getNutricionistaId());
+
+                boolean dosAniosTotal = request.getAnioInicio() != request.getAnioFin()
+                        && total.desglosesPorAnio() != null && total.desglosesPorAnio().size() == 2;
+                try {
+                    byte[] totalChart = dosAniosTotal
+                            ? informeGraficaService.generarGraficaFacturacionYoY(total)
+                            : informeGraficaService.generarGraficaFarmaciaSingleYear(total.totalesRango(), request.getAnioInicio());
+                    agregarGraficaDesdeBytes(document, totalChart);
+                } catch (Exception ignored) {}
+
+                if (total.desglosesPorAnio() != null) {
+                    for (DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> desglose : total.desglosesPorAnio()) {
+                        document.add(new Paragraph("Año " + desglose.anio(), fontSubtitulo));
+                        document.add(new Paragraph(" "));
+                        renderizarTablaFacturacion(document, desglose.datos());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error generando informe ventas por farmacia: " + e.getMessage());
+        }
+
+        document.close();
+        return out.toByteArray();
+    }
+
     public byte[] generarInformeClinicoPdf(DashboardDTO.InformePdfRequestDTO request) {
         DashboardDTO.ReporteJerarquicoDTO<List<DashboardDTO.RendimientoClinicoDTO>> reporte = dashboardService.obtenerRendimientoClinicoRango(
-                request.getAnioInicio(), request.getAnioFin(), request.getMes(), request.getNutricionistaId());
+                request.getAnioInicio(), request.getAnioFin(), request.getMes(), request.getNutricionistaId(), request.getFarmaciaId());
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4.rotate());

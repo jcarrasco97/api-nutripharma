@@ -154,24 +154,24 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardDTO.ReporteJerarquicoDTO<List<DashboardDTO.RendimientoClinicoDTO>> obtenerRendimientoClinicoRango(
-            int anioI, int anioF, Integer mes, Long nutriId) {
+            int anioI, int anioF, Integer mes, Long nutriId, Long farmId) {
 
         List<DashboardDTO.DesgloseAnualDTO<List<DashboardDTO.RendimientoClinicoDTO>>> desgloses = new ArrayList<>();
 
         for (int a = anioI; a <= anioF; a++) {
-            desgloses.add(new DashboardDTO.DesgloseAnualDTO<>(a, obtenerRendimientoClinico(a, a, mes, nutriId)));
+            desgloses.add(new DashboardDTO.DesgloseAnualDTO<>(a, obtenerRendimientoClinico(a, a, mes, nutriId, farmId)));
         }
 
         // Totales del rango clínico
         return new DashboardDTO.ReporteJerarquicoDTO<>(
-                obtenerRendimientoClinico(anioI, anioF, mes, nutriId), desgloses);
+                obtenerRendimientoClinico(anioI, anioF, mes, nutriId, farmId), desgloses);
     }
 
     // --- MÉTODOS DE APOYO Y AUDITORÍA ---
 
     @Transactional(readOnly = true)
     public List<DashboardDTO.RendimientoClinicoDTO> obtenerRendimientoClinico(int anioI, int anioF, Integer mes,
-            Long nutriId) {
+            Long nutriId, Long farmId) {
         LocalDate inicio = LocalDate.of(anioI, mes != null ? mes : 1, 1);
         LocalDate fin = (mes != null) ? YearMonth.of(anioF, mes).atEndOfMonth() : LocalDate.of(anioF, 12, 31);
 
@@ -182,6 +182,8 @@ public class DashboardService {
                         || c.getEstado() == EstadoConsulta.LIQUIDADA)
                 .filter(c -> nutriId == null
                         || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
+                .filter(c -> farmId == null
+                        || (c.getFarmacia() != null && c.getFarmacia().getId().equals(farmId)))
                 .collect(Collectors.groupingBy(c -> c.getFarmacia().getNombre()))
                 .entrySet().stream()
                 .map(entry -> {
@@ -243,6 +245,40 @@ public class DashboardService {
                     ingConsultas.add(ingPedidos)));
         }
         return lista;
+    }
+
+    @Transactional(readOnly = true)
+    public List<DashboardDTO.FacturacionPorFarmaciaDTO> obtenerVentasPorFarmacia(
+            int anioI, int anioF, Long nutriId) {
+
+        LocalDate inicio = LocalDate.of(anioI, 1, 1);
+        LocalDate fin = LocalDate.of(anioF, 12, 31);
+
+        List<Pedido> pedidos = pedidoRepository.findByFechaPedidoBetween(inicio, fin).stream()
+                .filter(p -> p.getEstado() == com.nutripharma.api_nutripharma.sales.pedidos.domain.EstadoPedido.ENVIADO)
+                .filter(p -> nutriId == null
+                        || p.getRepartos().stream().anyMatch(r -> r.getNutricionista().getId().equals(nutriId)))
+                .toList();
+
+        List<Consulta> consultas = consultaRepository.findByFechaBetween(inicio, fin).stream()
+                .filter(c -> c.getEstado() == EstadoConsulta.VALIDADA || c.getEstado() == EstadoConsulta.LIQUIDADA)
+                .filter(c -> nutriId == null
+                        || (c.getNutricionista() != null && c.getNutricionista().getId().equals(nutriId)))
+                .toList();
+
+        Map<Long, String> farmaciasOrdenadas = new LinkedHashMap<>();
+        pedidos.stream().filter(p -> p.getFarmacia() != null)
+                .forEach(p -> farmaciasOrdenadas.putIfAbsent(p.getFarmacia().getId(), p.getFarmacia().getNombre()));
+        consultas.stream().filter(c -> c.getFarmacia() != null)
+                .forEach(c -> farmaciasOrdenadas.putIfAbsent(c.getFarmacia().getId(), c.getFarmacia().getNombre()));
+
+        List<DashboardDTO.FacturacionPorFarmaciaDTO> resultado = new ArrayList<>();
+        for (Map.Entry<Long, String> entry : farmaciasOrdenadas.entrySet()) {
+            DashboardDTO.ReporteJerarquicoDTO<List<DashboardDTO.FacturacionMensualDTO>> reporte =
+                    obtenerFacturacionRango(anioI, anioF, entry.getKey(), nutriId);
+            resultado.add(new DashboardDTO.FacturacionPorFarmaciaDTO(entry.getKey(), entry.getValue(), reporte));
+        }
+        return resultado;
     }
 
     private BigDecimal calcularTotalPedido(Pedido pedido) {

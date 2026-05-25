@@ -89,6 +89,39 @@ public class InformeGraficaService {
         }
     }
 
+    public byte[] generarGraficaFarmaciaSingleYear(List<FacturacionMensualDTO> datos, int anio) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (int m = 0; m < 12; m++) {
+            final int mes = m + 1;
+            FacturacionMensualDTO dato = datos == null ? null :
+                    datos.stream().filter(d -> d.mesNumero() == mes).findFirst().orElse(null);
+            double consultas = dato != null && dato.ingresosConsultas() != null ? dato.ingresosConsultas().doubleValue() : 0.0;
+            double pedidos = dato != null && dato.ingresosPedidos() != null ? dato.ingresosPedidos().doubleValue() : 0.0;
+            dataset.addValue(consultas, "Consultas", MESES_LABELS[m]);
+            dataset.addValue(pedidos, "Productos", MESES_LABELS[m]);
+        }
+
+        JFreeChart chart = ChartFactory.createBarChart(
+                "Facturación " + anio + "  (Consultas + Productos)",
+                "Mes", "Euros (€)", dataset,
+                PlotOrientation.VERTICAL, true, false, false);
+
+        aplicarEstilos(chart);
+
+        CategoryPlot plot = chart.getCategoryPlot();
+        BarRenderer renderer = (BarRenderer) plot.getRenderer();
+        renderer.setSeriesPaint(0, new Color(0x4A, 0x90, 0x6A));
+        renderer.setSeriesPaint(1, COLOR_ANIO_ACTUAL);
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            ChartUtils.writeChartAsPNG(baos, chart, 1200, 400);
+            return baos.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("Error generando PNG gráfica farmacia: " + e.getMessage(), e);
+        }
+    }
+
     private double[] extraerTotalesMensuales(List<FacturacionMensualDTO> datos) {
         double[] arr = new double[12];
         if (datos == null) return arr;

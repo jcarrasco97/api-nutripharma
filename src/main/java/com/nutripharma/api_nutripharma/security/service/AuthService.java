@@ -4,7 +4,14 @@ import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import com.nutripharma.api_nutripharma.security.repository.RolRepository;
 import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.env.Environment;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,12 +19,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.nutripharma.api_nutripharma.core.events.LoginSuccessEvent; // <-- IMPORTAR EVENTO
 import jakarta.servlet.http.HttpServletRequest; // <-- IMPORTAR REQUEST
-import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTAR PUBLICADOR
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
@@ -25,6 +34,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+
+    private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
+    private final Environment env;
 
     // Inyecciones para la auditoría de seguridad
     private final HttpServletRequest request;
@@ -110,13 +123,27 @@ public class AuthService {
         usuario.setResetPasswordExpiration(java.time.LocalDateTime.now().plusMinutes(15));
         usuarioRepository.save(usuario);
 
-        // 3. SIMULAMOS EL ENVÍO DEL EMAIL (Cámbialo por JavaMailSender en Producción)
-        String enlaceReset = "http://localhost:5173/reset-password?token=" + token;
-        System.out.println("============================================================================");
-        System.out.println("SIMULACIÓN DE EMAIL A: " + email);
-        System.out.println("Asunto: Recuperación de Contraseña - NutriPharma");
-        System.out.println("Cuerpo: Haz clic aquí para restablecer tu contraseña: " + enlaceReset);
-        System.out.println("============================================================================");
+        String frontendUrl = env.getProperty("app.frontend.url", "http://localhost:5173");
+        String enlaceReset = frontendUrl + "/reset-password?token=" + token;
+
+        Context ctx = new Context();
+        ctx.setVariable("nombre", usuario.getEmail());
+        ctx.setVariable("enlaceReset", enlaceReset);
+        String html = templateEngine.process("email-reset-password", ctx);
+
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom("soporte@innaforem.es");
+            helper.setTo(usuario.getEmail());
+            helper.setSubject("Recuperación de contraseña — Nutripharma ERP");
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("Correo de recuperación enviado a: {}", usuario.getEmail());
+        } catch (MessagingException | org.springframework.mail.MailException e) {
+            log.error("Error al enviar correo de recuperación a {}: {}", usuario.getEmail(), e.getMessage());
+            throw new RuntimeException("Error al enviar el correo de recuperación.", e);
+        }
     }
 
     @Transactional

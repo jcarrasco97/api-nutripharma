@@ -1,5 +1,6 @@
 package com.nutripharma.api_nutripharma.operations.consultas.controller.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.nutripharma.api_nutripharma.operations.consultas.domain.EstadoConsulta;
 
 import java.time.LocalDate;
@@ -12,8 +13,8 @@ public class ConsultaDTO {
             Long nutricionistaId,
             Long farmaciaId,
             LocalDate fecha,
-            LocalTime horaInicio,
-            LocalTime horaFin,
+            @JsonFormat(pattern = "HH:mm") LocalTime horaInicio,
+            @JsonFormat(pattern = "HH:mm") LocalTime horaFin,
             Integer nuevas,
             Integer revisiones,
             Integer promociones,
@@ -23,11 +24,13 @@ public class ConsultaDTO {
 
     public record ConsultaResponse(
             Long id,
+            Long nutricionistaId,
             String nutricionistaNombre,
+            Long farmaciaId,
             String farmaciaNombre,
             LocalDate fecha,
-            LocalTime horaInicio,
-            LocalTime horaFin,
+            @JsonFormat(pattern = "HH:mm") LocalTime horaInicio,
+            @JsonFormat(pattern = "HH:mm") LocalTime horaFin,
             Integer nuevas,
             Integer revisiones,
             Integer promociones,
@@ -36,7 +39,7 @@ public class ConsultaDTO {
             EstadoConsulta estado,
             String mensajeIncidencia,
             String evidenciaUrl,
-            LocalDateTime evidenciaFecha,
-            LocalDateTime fechaCreacion
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime evidenciaFecha,
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fechaCreacion
     ) {}
 }

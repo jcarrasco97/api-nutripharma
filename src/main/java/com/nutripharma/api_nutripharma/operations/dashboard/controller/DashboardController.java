@@ -95,9 +95,10 @@ public class DashboardController {
             @RequestParam int anioInicio,
             @RequestParam int anioFin,
             @RequestParam(required = false) Integer mes,
+            @RequestParam(required = false) Long farmaciaId,
             @RequestParam(required = false) Long nutricionistaId) {
         return ResponseEntity
-                .ok(dashboardService.obtenerRendimientoClinicoRango(anioInicio, anioFin, mes, nutricionistaId));
+                .ok(dashboardService.obtenerRendimientoClinicoRango(anioInicio, anioFin, mes, nutricionistaId, farmaciaId));
     }
 
     @PostMapping(value = "/admin/clinico/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
@@ -131,12 +132,39 @@ public class DashboardController {
         return ResponseEntity.ok().headers(headers).body(xlsx);
     }
 
+    @GetMapping("/admin/ventas-farmacia")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<DashboardDTO.FacturacionPorFarmaciaDTO>> obtenerVentasPorFarmacia(
+            @RequestParam int anioInicio,
+            @RequestParam int anioFin,
+            @RequestParam(required = false) Long nutricionistaId) {
+        return ResponseEntity.ok(dashboardService.obtenerVentasPorFarmacia(anioInicio, anioFin, nutricionistaId));
+    }
+
+    @PostMapping(value = "/admin/ventas-farmacia/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> descargarInformeVentasFarmaciaPdf(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+        byte[] pdf = informePdfService.generarInformeVentasPorFarmaciaPdf(request);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentDispositionFormData("attachment", "informe_ventas_farmacia_" + request.getAnioInicio() + ".pdf");
+        return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
     @PostMapping(value = "/admin/clinico/excel", produces = EXCEL_MIME)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<byte[]> descargarInformeClinicoExcel(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
         byte[] xlsx = informeExcelService.generarInformeClinicoExcel(request);
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentDispositionFormData("attachment", "informe_clinico_" + request.getAnioInicio() + ".xlsx");
+        return ResponseEntity.ok().headers(headers).body(xlsx);
+    }
+
+    @PostMapping(value = "/admin/ventas-farmacia/excel", produces = EXCEL_MIME)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> descargarInformeVentasFarmaciaExcel(@RequestBody DashboardDTO.InformePdfRequestDTO request) {
+        byte[] xlsx = informeExcelService.generarInformeVentasFarmaciaExcel(request);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentDispositionFormData("attachment", "informe_ventas_farmacia_" + request.getAnioInicio() + ".xlsx");
         return ResponseEntity.ok().headers(headers).body(xlsx);
     }
 }

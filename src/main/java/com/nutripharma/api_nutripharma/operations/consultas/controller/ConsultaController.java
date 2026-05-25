@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/consultas")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // <--- ¡ETIQUETA SALVAVIDAS!
+@CrossOrigin(origins = "*")
 public class ConsultaController {
 
     private final ConsultaService consultaService;

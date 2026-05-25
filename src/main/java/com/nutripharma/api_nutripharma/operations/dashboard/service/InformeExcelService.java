@@ -2,6 +2,7 @@ package com.nutripharma.api_nutripharma.operations.dashboard.service;
 
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.FacturacionMensualDTO;
+import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.FacturacionPorFarmaciaDTO;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.InformePdfRequestDTO;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.RendimientoClinicoDTO;
 import com.nutripharma.api_nutripharma.operations.dashboard.controller.DashboardDTO.RendimientoProductoDTO;
@@ -19,15 +20,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
-/**
- * Servicio de generación de informes Excel (.xlsx) con Apache POI.
- * Reutiliza la lógica de cálculo ya consolidada en {@link DashboardService}.
- *
- * Convenciones de estilo:
- *  - Cabecera: fondo verde corporativo (#062e3a) con texto blanco en negrita.
- *  - Primera fila congelada (freeze pane) y todas las columnas auto-ajustadas.
- *  - Nombres de hojas truncados a 31 caracteres (límite de Excel).
- */
 @Service
 @RequiredArgsConstructor
 public class InformeExcelService {
@@ -49,6 +41,10 @@ public class InformeExcelService {
 
             CellStyle estiloCabecera = crearEstiloCabecera(workbook);
             CellStyle estiloTotal = crearEstiloTotal(workbook);
+
+            // Hoja MAESTRO — datos planos, filtrable en Excel
+            Sheet hojaMaestroP = workbook.createSheet("Maestro");
+            renderizarMaestroProductos(hojaMaestroP, reporte, estiloCabecera);
 
             // Hoja por cada año (solo si hay desglose y es un rango)
             if (request.getAnioInicio() != request.getAnioFin() && reporte.desglosesPorAnio() != null) {
@@ -103,7 +99,6 @@ public class InformeExcelService {
             }
         }
 
-        // Fila TOTAL
         Row filaTotal = hoja.createRow(filaIdx);
         Cell cTotal = filaTotal.createCell(0);
         cTotal.setCellValue("TOTAL");
@@ -126,8 +121,40 @@ public class InformeExcelService {
         autoAjustarYCongelar(hoja, cabeceras.length);
     }
 
+    private void renderizarMaestroProductos(Sheet hoja,
+            DashboardDTO.ReporteJerarquicoDTO<List<RendimientoProductoDTO>> reporte,
+            CellStyle estiloCabecera) {
+        String[] cabeceras = {"Año", "Producto", "Uds. Vendidas", "PVF Unitario (€)", "PVP Unitario (€)", "Total PVF (€)", "Total PVP (€)"};
+        Row filaCabecera = hoja.createRow(0);
+        for (int i = 0; i < cabeceras.length; i++) {
+            Cell c = filaCabecera.createCell(i);
+            c.setCellValue(cabeceras[i]);
+            c.setCellStyle(estiloCabecera);
+        }
+
+        int filaIdx = 1;
+        if (reporte.desglosesPorAnio() != null) {
+            for (DashboardDTO.DesgloseAnualDTO<List<RendimientoProductoDTO>> desglose : reporte.desglosesPorAnio()) {
+                if (desglose.datos() == null) continue;
+                for (RendimientoProductoDTO p : desglose.datos()) {
+                    Row fila = hoja.createRow(filaIdx++);
+                    fila.createCell(0).setCellValue(desglose.anio());
+                    fila.createCell(1).setCellValue(p.productoNombre() != null ? p.productoNombre() : "");
+                    fila.createCell(2).setCellValue(p.cantidadVendida() != null ? p.cantidadVendida() : 0L);
+                    fila.createCell(3).setCellValue(p.precioVentaFarmacia() != null ? p.precioVentaFarmacia().doubleValue() : 0.0);
+                    fila.createCell(4).setCellValue(p.precioVentaPublico() != null ? p.precioVentaPublico().doubleValue() : 0.0);
+                    fila.createCell(5).setCellValue(p.ingresosGeneradosPvf() != null ? p.ingresosGeneradosPvf().doubleValue() : 0.0);
+                    fila.createCell(6).setCellValue(p.ingresosPotencialesPvp() != null ? p.ingresosPotencialesPvp().doubleValue() : 0.0);
+                }
+            }
+        }
+
+        autoAjustarYCongelar(hoja, cabeceras.length);
+        if (filaIdx > 1) hoja.setAutoFilter(new CellRangeAddress(0, filaIdx - 1, 0, cabeceras.length - 1));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. EXCEL: FACTURACIÓN (el más importante — incluye comparativa YoY)
+    // 2. EXCEL: FACTURACIÓN (incluye comparativa YoY)
     // ─────────────────────────────────────────────────────────────────────────
 
     public byte[] generarInformeFacturacionExcel(InformePdfRequestDTO request) {
@@ -141,11 +168,15 @@ public class InformeExcelService {
 
             CellStyle estiloCabecera = crearEstiloCabecera(workbook);
             CellStyle estiloTotal = crearEstiloTotal(workbook);
-            CellStyle estiloVerde = crearEstiloPorcentajeColor(workbook, new Color(46, 125, 50));   // verde
-            CellStyle estiloRojo = crearEstiloPorcentajeColor(workbook, new Color(198, 40, 40));    // rojo
+            CellStyle estiloVerde = crearEstiloPorcentajeColor(workbook, new Color(46, 125, 50));
+            CellStyle estiloRojo = crearEstiloPorcentajeColor(workbook, new Color(198, 40, 40));
             CellStyle estiloNeutro = crearEstiloPorcentaje(workbook);
 
             List<DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>>> desgloses = reporte.desglosesPorAnio();
+
+            // Hoja MAESTRO — datos planos, filtrable en Excel
+            Sheet hojaMaestro = workbook.createSheet("Maestro");
+            renderizarMaestroFacturacion(hojaMaestro, reporte, estiloCabecera);
 
             // Hoja "Comparativa YoY" si hay 2+ años
             if (desgloses != null && desgloses.size() >= 2) {
@@ -217,6 +248,37 @@ public class InformeExcelService {
         autoAjustarYCongelar(hoja, cabeceras.length);
     }
 
+    private void renderizarMaestroFacturacion(Sheet hoja,
+            DashboardDTO.ReporteJerarquicoDTO<List<FacturacionMensualDTO>> reporte,
+            CellStyle estiloCabecera) {
+        String[] cabeceras = {"Año", "Nº Mes", "Mes", "Consultas (€)", "Productos (€)", "Total (€)"};
+        Row filaCabecera = hoja.createRow(0);
+        for (int i = 0; i < cabeceras.length; i++) {
+            Cell c = filaCabecera.createCell(i);
+            c.setCellValue(cabeceras[i]);
+            c.setCellStyle(estiloCabecera);
+        }
+
+        int filaIdx = 1;
+        if (reporte.desglosesPorAnio() != null) {
+            for (DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> desglose : reporte.desglosesPorAnio()) {
+                if (desglose.datos() == null) continue;
+                for (FacturacionMensualDTO m : desglose.datos()) {
+                    Row fila = hoja.createRow(filaIdx++);
+                    fila.createCell(0).setCellValue(desglose.anio());
+                    fila.createCell(1).setCellValue(m.mesNumero());
+                    fila.createCell(2).setCellValue(m.mesTexto() != null ? m.mesTexto() : "");
+                    fila.createCell(3).setCellValue(m.ingresosConsultas() != null ? m.ingresosConsultas().doubleValue() : 0.0);
+                    fila.createCell(4).setCellValue(m.ingresosPedidos() != null ? m.ingresosPedidos().doubleValue() : 0.0);
+                    fila.createCell(5).setCellValue(m.totalBruto() != null ? m.totalBruto().doubleValue() : 0.0);
+                }
+            }
+        }
+
+        autoAjustarYCongelar(hoja, cabeceras.length);
+        if (filaIdx > 1) hoja.setAutoFilter(new CellRangeAddress(0, filaIdx - 1, 0, cabeceras.length - 1));
+    }
+
     private void renderizarHojaComparativaYoY(Sheet hoja,
                                                DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> anio1,
                                                DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> anio2,
@@ -251,7 +313,6 @@ public class InformeExcelService {
             c.setCellStyle(estiloCabecera);
         }
 
-        // Indexar por mes (1-12) para ambos años
         FacturacionMensualDTO[] datosA1 = indexarPorMes(anio1.datos());
         FacturacionMensualDTO[] datosA2 = indexarPorMes(anio2.datos());
 
@@ -283,7 +344,7 @@ public class InformeExcelService {
 
             double delta = calcularDeltaPorcentual(a1Tot, a2Tot);
             Cell celdaDeltaFila = fila.createCell(7);
-            celdaDeltaFila.setCellValue(delta / 100.0); // formato porcentaje en Excel
+            celdaDeltaFila.setCellValue(delta / 100.0);
             if (delta > 0)      celdaDeltaFila.setCellStyle(estiloVerde);
             else if (delta < 0) celdaDeltaFila.setCellStyle(estiloRojo);
             else                celdaDeltaFila.setCellStyle(estiloNeutro);
@@ -296,7 +357,6 @@ public class InformeExcelService {
             totA2Total     = totA2Total.add(a2Tot);
         }
 
-        // Fila TOTAL
         Row filaTotal = hoja.createRow(14);
         Cell t0 = filaTotal.createCell(0); t0.setCellValue("TOTAL"); t0.setCellStyle(estiloTotal);
         aplicarTotal(filaTotal, 1, totA1Consultas, estiloTotal);
@@ -314,12 +374,11 @@ public class InformeExcelService {
         else                     celdaDeltaTotal.setCellStyle(estiloNeutro);
 
         autoAjustarYCongelar(hoja, cabeceras.length);
-        // Congelamos las DOS primeras filas (super-cabecera + cabecera) en lugar de solo 1
         hoja.createFreezePane(0, 2);
     }
 
     private FacturacionMensualDTO[] indexarPorMes(List<FacturacionMensualDTO> lista) {
-        FacturacionMensualDTO[] arr = new FacturacionMensualDTO[13]; // índice 1..12
+        FacturacionMensualDTO[] arr = new FacturacionMensualDTO[13];
         if (lista == null) return arr;
         for (FacturacionMensualDTO d : lista) {
             if (d.mesNumero() >= 1 && d.mesNumero() <= 12) arr[d.mesNumero()] = d;
@@ -355,7 +414,7 @@ public class InformeExcelService {
         DashboardDTO.ReporteJerarquicoDTO<List<RendimientoClinicoDTO>> reporte =
                 dashboardService.obtenerRendimientoClinicoRango(
                         request.getAnioInicio(), request.getAnioFin(),
-                        request.getMes(), request.getNutricionistaId());
+                        request.getMes(), request.getNutricionistaId(), request.getFarmaciaId());
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -363,11 +422,24 @@ public class InformeExcelService {
             CellStyle estiloCabecera = crearEstiloCabecera(workbook);
             CellStyle estiloTotal = crearEstiloTotal(workbook);
 
-            String nombre = request.getAnioInicio() == request.getAnioFin()
-                    ? "Clinico " + request.getAnioInicio()
-                    : "Clinico " + request.getAnioInicio() + "-" + request.getAnioFin();
-            Sheet hoja = workbook.createSheet(safeSheetName(nombre));
-            renderizarHojaClinico(hoja, reporte.totalesRango(), estiloCabecera, estiloTotal);
+            // Hoja MAESTRO — datos planos, filtrable en Excel
+            Sheet hojaMaestro = workbook.createSheet("Maestro");
+            renderizarMaestroClinico(hojaMaestro, reporte, estiloCabecera);
+
+            // Hoja por cada año (solo si hay rango)
+            if (request.getAnioInicio() != request.getAnioFin() && reporte.desglosesPorAnio() != null) {
+                for (DashboardDTO.DesgloseAnualDTO<List<RendimientoClinicoDTO>> desglose : reporte.desglosesPorAnio()) {
+                    Sheet hoja = workbook.createSheet(safeSheetName("Clinico " + desglose.anio()));
+                    renderizarHojaClinico(hoja, desglose.datos(), estiloCabecera, estiloTotal);
+                }
+            }
+
+            // Hoja de totales (siempre presente)
+            String nombreTotales = request.getAnioInicio() == request.getAnioFin()
+                    ? "Totales " + request.getAnioInicio()
+                    : "Totales " + request.getAnioInicio() + "-" + request.getAnioFin();
+            Sheet hojaTotales = workbook.createSheet(safeSheetName(nombreTotales));
+            renderizarHojaClinico(hojaTotales, reporte.totalesRango(), estiloCabecera, estiloTotal);
 
             workbook.write(out);
             return out.toByteArray();
@@ -421,13 +493,187 @@ public class InformeExcelService {
         autoAjustarYCongelar(hoja, cabeceras.length);
     }
 
+    private void renderizarMaestroClinico(Sheet hoja,
+            DashboardDTO.ReporteJerarquicoDTO<List<RendimientoClinicoDTO>> reporte,
+            CellStyle estiloCabecera) {
+        String[] cabeceras = {"Año", "Farmacia", "Nuevas", "Revisiones", "Promocionales", "Personal", "Total Consultas", "Ingresos Est. (€)"};
+        Row filaCabecera = hoja.createRow(0);
+        for (int i = 0; i < cabeceras.length; i++) {
+            Cell c = filaCabecera.createCell(i);
+            c.setCellValue(cabeceras[i]);
+            c.setCellStyle(estiloCabecera);
+        }
+
+        int filaIdx = 1;
+        if (reporte.desglosesPorAnio() != null) {
+            for (DashboardDTO.DesgloseAnualDTO<List<RendimientoClinicoDTO>> desglose : reporte.desglosesPorAnio()) {
+                if (desglose.datos() == null) continue;
+                for (RendimientoClinicoDTO r : desglose.datos()) {
+                    Row fila = hoja.createRow(filaIdx++);
+                    fila.createCell(0).setCellValue(desglose.anio());
+                    fila.createCell(1).setCellValue(r.farmaciaNombre() != null ? r.farmaciaNombre() : "");
+                    fila.createCell(2).setCellValue(r.nuevas());
+                    fila.createCell(3).setCellValue(r.revisiones());
+                    fila.createCell(4).setCellValue(r.promocionales());
+                    fila.createCell(5).setCellValue(r.personal());
+                    fila.createCell(6).setCellValue(r.nuevas() + r.revisiones() + r.promocionales() + r.personal());
+                    fila.createCell(7).setCellValue(r.ingresosGenerados() != null ? r.ingresosGenerados().doubleValue() : 0.0);
+                }
+            }
+        }
+
+        autoAjustarYCongelar(hoja, cabeceras.length);
+        if (filaIdx > 1) hoja.setAutoFilter(new CellRangeAddress(0, filaIdx - 1, 0, cabeceras.length - 1));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. EXCEL: VENTAS POR FARMACIA / CENTRO
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public byte[] generarInformeVentasFarmaciaExcel(InformePdfRequestDTO request) {
+        List<FacturacionPorFarmaciaDTO> datos =
+                dashboardService.obtenerVentasPorFarmacia(
+                        request.getAnioInicio(), request.getAnioFin(), request.getNutricionistaId());
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            CellStyle estiloCabecera = crearEstiloCabecera(workbook);
+            CellStyle estiloTotal = crearEstiloTotal(workbook);
+            CellStyle estiloVerde = crearEstiloPorcentajeColor(workbook, new Color(46, 125, 50));
+            CellStyle estiloRojo = crearEstiloPorcentajeColor(workbook, new Color(198, 40, 40));
+            CellStyle estiloNeutro = crearEstiloPorcentaje(workbook);
+
+            // Hoja MAESTRO — datos planos, filtrable
+            Sheet hojaMaestro = workbook.createSheet("Maestro");
+            renderizarMaestroVentasFarmacia(hojaMaestro, datos, estiloCabecera);
+
+            // Hoja RESUMEN — una fila por farmacia con totales
+            Sheet hojaResumen = workbook.createSheet("Resumen");
+            renderizarResumenVentasFarmacia(hojaResumen, datos, estiloCabecera, estiloTotal);
+
+            // Hoja por cada farmacia (YoY si 2+ años, mensual si 1 año)
+            if (datos != null) {
+                for (FacturacionPorFarmaciaDTO farmacia : datos) {
+                    String nombreHoja = safeSheetName(
+                            farmacia.farmaciaNombre() != null ? farmacia.farmaciaNombre() : "Farmacia " + farmacia.farmaciaId());
+                    DashboardDTO.ReporteJerarquicoDTO<List<FacturacionMensualDTO>> reporte = farmacia.reporte();
+                    List<DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>>> desgloses = reporte.desglosesPorAnio();
+
+                    if (desgloses != null && desgloses.size() >= 2) {
+                        Sheet hojaYoY = workbook.createSheet(nombreHoja);
+                        DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> anio1 = desgloses.get(0);
+                        DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> anio2 = desgloses.get(desgloses.size() - 1);
+                        renderizarHojaComparativaYoY(hojaYoY, anio1, anio2, estiloCabecera, estiloTotal,
+                                estiloVerde, estiloRojo, estiloNeutro);
+                    } else {
+                        Sheet hojaFarmacia = workbook.createSheet(nombreHoja);
+                        renderizarHojaFacturacion(hojaFarmacia, reporte.totalesRango(), estiloCabecera, estiloTotal);
+                    }
+                }
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("Error generando Excel ventas por farmacia: " + e.getMessage(), e);
+        }
+    }
+
+    private void renderizarMaestroVentasFarmacia(Sheet hoja,
+            List<FacturacionPorFarmaciaDTO> datos,
+            CellStyle estiloCabecera) {
+        String[] cabeceras = {"Año", "Nº Mes", "Mes", "Centro / Farmacia", "Consultas (€)", "Productos (€)", "Total (€)"};
+        Row filaCabecera = hoja.createRow(0);
+        for (int i = 0; i < cabeceras.length; i++) {
+            Cell c = filaCabecera.createCell(i);
+            c.setCellValue(cabeceras[i]);
+            c.setCellStyle(estiloCabecera);
+        }
+
+        int filaIdx = 1;
+        if (datos != null) {
+            for (FacturacionPorFarmaciaDTO farmacia : datos) {
+                DashboardDTO.ReporteJerarquicoDTO<List<FacturacionMensualDTO>> reporte = farmacia.reporte();
+                if (reporte.desglosesPorAnio() == null) continue;
+                for (DashboardDTO.DesgloseAnualDTO<List<FacturacionMensualDTO>> desglose : reporte.desglosesPorAnio()) {
+                    if (desglose.datos() == null) continue;
+                    for (FacturacionMensualDTO m : desglose.datos()) {
+                        Row fila = hoja.createRow(filaIdx++);
+                        fila.createCell(0).setCellValue(desglose.anio());
+                        fila.createCell(1).setCellValue(m.mesNumero());
+                        fila.createCell(2).setCellValue(m.mesTexto() != null ? m.mesTexto() : "");
+                        fila.createCell(3).setCellValue(farmacia.farmaciaNombre() != null ? farmacia.farmaciaNombre() : "");
+                        fila.createCell(4).setCellValue(m.ingresosConsultas() != null ? m.ingresosConsultas().doubleValue() : 0.0);
+                        fila.createCell(5).setCellValue(m.ingresosPedidos() != null ? m.ingresosPedidos().doubleValue() : 0.0);
+                        fila.createCell(6).setCellValue(m.totalBruto() != null ? m.totalBruto().doubleValue() : 0.0);
+                    }
+                }
+            }
+        }
+
+        autoAjustarYCongelar(hoja, cabeceras.length);
+        if (filaIdx > 1) hoja.setAutoFilter(new CellRangeAddress(0, filaIdx - 1, 0, cabeceras.length - 1));
+    }
+
+    private void renderizarResumenVentasFarmacia(Sheet hoja,
+            List<FacturacionPorFarmaciaDTO> datos,
+            CellStyle estiloCabecera, CellStyle estiloTotal) {
+        String[] cabeceras = {"Centro / Farmacia", "Total Consultas (€)", "Total Productos (€)", "Total General (€)"};
+        Row filaCabecera = hoja.createRow(0);
+        for (int i = 0; i < cabeceras.length; i++) {
+            Cell c = filaCabecera.createCell(i);
+            c.setCellValue(cabeceras[i]);
+            c.setCellStyle(estiloCabecera);
+        }
+
+        BigDecimal grandTotalCons = BigDecimal.ZERO;
+        BigDecimal grandTotalProd = BigDecimal.ZERO;
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        int filaIdx = 1;
+        if (datos != null) {
+            for (FacturacionPorFarmaciaDTO farmacia : datos) {
+                BigDecimal totalCons = BigDecimal.ZERO;
+                BigDecimal totalProd = BigDecimal.ZERO;
+                BigDecimal total = BigDecimal.ZERO;
+
+                List<FacturacionMensualDTO> totales = farmacia.reporte().totalesRango();
+                if (totales != null) {
+                    for (FacturacionMensualDTO m : totales) {
+                        if (m.ingresosConsultas() != null) totalCons = totalCons.add(m.ingresosConsultas());
+                        if (m.ingresosPedidos() != null)   totalProd = totalProd.add(m.ingresosPedidos());
+                        if (m.totalBruto() != null)         total     = total.add(m.totalBruto());
+                    }
+                }
+
+                Row fila = hoja.createRow(filaIdx++);
+                fila.createCell(0).setCellValue(farmacia.farmaciaNombre() != null ? farmacia.farmaciaNombre() : "");
+                fila.createCell(1).setCellValue(totalCons.setScale(2, RoundingMode.HALF_UP).doubleValue());
+                fila.createCell(2).setCellValue(totalProd.setScale(2, RoundingMode.HALF_UP).doubleValue());
+                fila.createCell(3).setCellValue(total.setScale(2, RoundingMode.HALF_UP).doubleValue());
+
+                grandTotalCons = grandTotalCons.add(totalCons);
+                grandTotalProd = grandTotalProd.add(totalProd);
+                grandTotal = grandTotal.add(total);
+            }
+        }
+
+        Row filaTotal = hoja.createRow(filaIdx);
+        Cell c0 = filaTotal.createCell(0); c0.setCellValue("TOTAL"); c0.setCellStyle(estiloTotal);
+        aplicarTotal(filaTotal, 1, grandTotalCons, estiloTotal);
+        aplicarTotal(filaTotal, 2, grandTotalProd, estiloTotal);
+        aplicarTotal(filaTotal, 3, grandTotal, estiloTotal);
+
+        autoAjustarYCongelar(hoja, cabeceras.length);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // UTILIDADES DE ESTILO Y FORMATO
     // ─────────────────────────────────────────────────────────────────────────
 
     private CellStyle crearEstiloCabecera(XSSFWorkbook workbook) {
         CellStyle estilo = workbook.createCellStyle();
-        // Color corporativo #062e3a
         estilo.setFillForegroundColor(new XSSFColor(new Color(6, 46, 58), null));
         estilo.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         Font fuente = workbook.createFont();
@@ -482,10 +728,6 @@ public class InformeExcelService {
         hoja.createFreezePane(0, 1);
     }
 
-    /**
-     * Trunca y sanea el nombre de la hoja para cumplir la limitación de Excel:
-     * máximo 31 caracteres y sin los caracteres prohibidos \ / ? * [ ]
-     */
     private String safeSheetName(String nombre) {
         if (nombre == null) return "Hoja";
         String limpio = nombre.replaceAll("[\\\\/\\?\\*\\[\\]:]", "_");

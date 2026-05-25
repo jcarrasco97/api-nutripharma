@@ -16,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+import org.springframework.security.access.AccessDeniedException;
 
 @Service
 @RequiredArgsConstructor
@@ -50,10 +52,10 @@ public class ConsultaService {
 
         // 3. Si pasa el escudo, procedemos con la creación normal
         Nutricionista nutricionista = nutricionistaRepository.findById(request.nutricionistaId())
-                .orElseThrow(() -> new IllegalArgumentException("Nutricionista no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Nutricionista no encontrado"));
 
         Farmacia farmacia = farmaciaRepository.findById(request.farmaciaId())
-                .orElseThrow(() -> new IllegalArgumentException("Farmacia no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Farmacia no encontrada"));
 
         Consulta nuevaConsulta = Consulta.builder()
                 .nutricionista(nutricionista)
@@ -75,7 +77,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse confirmarTurno(Long id) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEstado() != EstadoConsulta.BORRADOR && consulta.getEstado() != EstadoConsulta.CON_INCIDENCIA) {
             throw new IllegalStateException("Solo se pueden confirmar consultas en Borrador o con Incidencia resuelta.");
@@ -92,7 +94,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse validarTurno(Long id) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEstado() == EstadoConsulta.VALIDADA) {
             throw new IllegalStateException("Esta consulta ya ha sido validada y liquidada anteriormente.");
@@ -111,7 +113,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse editarYValidarTurnoAdmin(Long id, Integer nuevas, Integer revisiones, Integer promociones, Integer personalFarmacia) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
             throw new IllegalStateException("No se puede editar una consulta cancelada.");
@@ -136,7 +138,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse cancelarTurnoAdmin(Long id) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEstado() == EstadoConsulta.CANCELADA) {
             throw new IllegalStateException("La consulta ya está cancelada.");
@@ -211,7 +213,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse reportarIncidencia(Long id, String mensaje) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
         if (consulta.getEstado() == EstadoConsulta.BORRADOR || consulta.getEstado() == EstadoConsulta.CANCELADA) {
             throw new IllegalStateException("No se pueden abrir incidencias en este estado.");
         }
@@ -232,7 +234,7 @@ public class ConsultaService {
     @Transactional(readOnly = true)
     public ConsultaResponse obtenerPorId(Long id) {
         Consulta consulta = consultaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
         return mapToResponse(consulta);
     }
 
@@ -249,15 +251,15 @@ public class ConsultaService {
     @Transactional
     public void adjuntarEvidencia(Long consultaId, org.springframework.web.multipart.MultipartFile archivo, String emailNutricionista) throws Exception {
         Consulta consulta = consultaRepository.findById(consultaId)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         boolean esDueño = consulta.getNutricionista() != null && consulta.getNutricionista().getUsuario().getEmail().equals(emailNutricionista);
         boolean isAdmin = usuarioRepository.findByEmailIgnorandoBajas(emailNutricionista)
-                .orElseThrow()
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + emailNutricionista))
                 .getRoles().stream().anyMatch(r -> r.getNombre().contains("ADMIN"));
 
         if (!esDueño && !isAdmin) {
-            throw new SecurityException("No tienes permiso para adjuntar evidencias a este turno.");
+            throw new AccessDeniedException("No tienes permiso para adjuntar evidencias a este turno.");
         }
 
         // Calcular carpeta: Agendas/{nombre nutricionista}/{año-mes de la consulta}
@@ -268,17 +270,20 @@ public class ConsultaService {
                 ? consulta.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
                 : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
 
-        // Nombre del archivo: dd-MM-yy-TurnoID-Nombre_Nutricionista.ext
+        // Nombre del archivo: fechaTurno-Idturno-IdNutri-NombreFarmacia-IdFarmacia.ext
         String fechaTurno = consulta.getFecha() != null
                 ? consulta.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yy"))
                 : "sin-fecha";
-        String nombreSeguro = nombreNutri.replaceAll("\\s+", "_");
+        String idNutri = consulta.getNutricionista() != null ? consulta.getNutricionista().getId().toString() : "0";
+        String nombreFarmacia = consulta.getFarmacia() != null ? consulta.getFarmacia().getNombre().replaceAll("\\s+", "_") : "SinFarmacia";
+        String idFarmacia = consulta.getFarmacia() != null ? consulta.getFarmacia().getId().toString() : "0";
+
         String extension = "";
         String originalFilename = archivo.getOriginalFilename();
         if (originalFilename != null && originalFilename.contains(".")) {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
-        String nombreArchivo = fechaTurno + "-Turno" + consultaId + "-" + nombreSeguro + extension;
+        String nombreArchivo = fechaTurno + "-" + consultaId + "-" + idNutri + "-" + nombreFarmacia + "-" + idFarmacia + extension;
 
         String driveFileId = googleDriveService.subirEvidencia(archivo, nombreArchivo, "Agendas", nombreNutri, mesAnio);
         consulta.setEvidenciaUrl(driveFileId);
@@ -289,7 +294,7 @@ public class ConsultaService {
     @Transactional(readOnly = true)
     public byte[] descargarEvidencia(Long consultaId, String emailUsuario) throws Exception {
         Consulta consulta = consultaRepository.findById(consultaId)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEvidenciaUrl() == null) {
             throw new IllegalStateException("Esta consulta no tiene ninguna foto adjunta.");
@@ -301,7 +306,7 @@ public class ConsultaService {
     @Transactional
     public ConsultaResponse eliminarEvidenciaAdmin(Long consultaId) throws Exception {
         Consulta consulta = consultaRepository.findById(consultaId)
-                .orElseThrow(() -> new IllegalArgumentException("Consulta no encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Consulta no encontrada"));
 
         if (consulta.getEvidenciaUrl() == null) {
             throw new IllegalStateException("Esta consulta no tiene evidencia para borrar.");
@@ -324,9 +329,14 @@ public class ConsultaService {
                 ? c.getFarmacia().getNombre()
                 : "[Farmacia Borrada]";
 
+        Long nutricionistaId = c.getNutricionista() != null ? c.getNutricionista().getId() : null;
+        Long farmaciaId = c.getFarmacia() != null ? c.getFarmacia().getId() : null;
+
         return new ConsultaResponse(
                 c.getId(),
+                nutricionistaId,
                 nombreNutri,
+                farmaciaId,
                 nombreFarmacia,
                 c.getFecha(),
                 c.getHoraInicio(),

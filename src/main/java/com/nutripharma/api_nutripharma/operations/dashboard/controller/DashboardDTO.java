@@ -75,6 +75,12 @@ public class DashboardDTO {
                         BigDecimal ingresosGenerados) {
         }
 
+        public record FacturacionPorFarmaciaDTO(
+                        Long farmaciaId,
+                        String farmaciaNombre,
+                        ReporteJerarquicoDTO<List<FacturacionMensualDTO>> reporte) {
+        }
+
         // --- CONFIGURACIÓN DE PETICIÓN (Request) ---
 
         @Data
