@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nutripharma.api_nutripharma.core.events.PedidoConfirmadoEvent; // <-- IMPORTA EL EVENTO
 import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTA EL PUBLICADOR
 import com.nutripharma.api_nutripharma.organization.personal.repository.AdministradorRepository; // <-- AÑADIR ESTE
+import com.nutripharma.api_nutripharma.organization.farmacias.saldo.service.SaldoMovimientoService;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class PedidoService {
     private final ProductoRepository productoRepository;
     private final ApplicationEventPublisher eventPublisher; // <-- INYECTA EL EVENT PUBLISHER
     private final AdministradorRepository administradorRepository;
+    private final SaldoMovimientoService saldoMovimientoService;
 
     private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
 
@@ -120,6 +122,10 @@ public class PedidoService {
             BigDecimal nuevoSaldo = saldoDisponible.subtract(totalSaldo);
             farmacia.setSaldoVirtual(nuevoSaldo.doubleValue());
             farmaciaRepository.save(farmacia);
+
+            Pedido pedidoGuardadoParaSaldo = pedidoRepository.save(nuevoPedido);
+            saldoMovimientoService.registrarGasto(farmacia, totalSaldo, pedidoGuardadoParaSaldo.getId(), usuarioActual);
+            return mapToResponse(pedidoGuardadoParaSaldo);
         }
 
         return mapToResponse(pedidoRepository.save(nuevoPedido));
@@ -151,6 +157,10 @@ public class PedidoService {
 
             farmacia.setSaldoVirtual(saldoRestaurado.doubleValue());
             farmaciaRepository.save(farmacia);
+
+            String actor = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getName();
+            saldoMovimientoService.registrarDevolucion(farmacia, totalSaldoGastado, pedido.getId(), actor);
         }
 
         // 3. Cambiar estado a CANCELADO

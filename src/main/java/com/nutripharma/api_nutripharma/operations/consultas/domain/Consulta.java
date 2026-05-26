@@ -76,6 +76,11 @@ public class Consulta {
     @Column(name = "mensaje_incidencia", columnDefinition = "TEXT")
     private String mensajeIncidencia;
 
+    // Saldo generado para la farmacia al validar esta consulta. Se graba en el momento
+    // de validación para garantizar trazabilidad exacta aunque cambie el % de comisión.
+    @Column(name = "comision_generada", precision = 10, scale = 2)
+    private java.math.BigDecimal comisionGenerada;
+
     // --- EVIDENCIAS (Prueba de Vida) ---
     @Column(name = "evidencia_url", length = 500)
     private String evidenciaUrl;

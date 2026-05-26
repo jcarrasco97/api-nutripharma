@@ -3,6 +3,7 @@ package com.nutripharma.api_nutripharma.operations.consultas.controller.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.nutripharma.api_nutripharma.operations.consultas.domain.EstadoConsulta;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -40,6 +41,7 @@ public class ConsultaDTO {
             String mensajeIncidencia,
             String evidenciaUrl,
             @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime evidenciaFecha,
-            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fechaCreacion
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fechaCreacion,
+            BigDecimal comisionGenerada
     ) {}
 }

@@ -5,6 +5,8 @@ import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.Far
 import com.nutripharma.api_nutripharma.organization.farmacias.controller.dto.FarmaciaDTO.FarmaciaResponse;
 import com.nutripharma.api_nutripharma.organization.farmacias.domain.Farmacia;
 import com.nutripharma.api_nutripharma.organization.farmacias.repository.FarmaciaRepository;
+import com.nutripharma.api_nutripharma.organization.farmacias.saldo.controller.dto.SaldoMovimientoDTO.AjusteSaldoRequest;
+import com.nutripharma.api_nutripharma.organization.farmacias.saldo.service.SaldoMovimientoService;
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.AsignacionFarmaciaRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
@@ -16,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -28,6 +32,7 @@ public class FarmaciaService {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SaldoMovimientoService saldoMovimientoService;
 
     @Transactional
     public FarmaciaResponse crearFarmacia(FarmaciaRequest request) {
@@ -156,6 +161,25 @@ public class FarmaciaService {
                 f.getEsProvinciaLocal(),
                 f.getPorcentajeComision()
         );
+    }
+
+    @Transactional
+    public FarmaciaResponse ajustarSaldoAdmin(Long id, AjusteSaldoRequest request, String adminEmail) {
+        Farmacia farmacia = farmaciaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Farmacia no encontrada"));
+
+        BigDecimal saldoAnterior = BigDecimal.valueOf(farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal nuevoSaldo = BigDecimal.valueOf(request.nuevoSaldo())
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal diferencia = nuevoSaldo.subtract(saldoAnterior);
+
+        farmacia.setSaldoVirtual(nuevoSaldo.doubleValue());
+        farmaciaRepository.save(farmacia);
+
+        saldoMovimientoService.registrarAjusteManual(farmacia, diferencia, nuevoSaldo, request.nota(), adminEmail);
+
+        return mapToResponse(farmacia);
     }
 
     @Transactional(readOnly = true)

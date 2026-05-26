@@ -11,10 +11,13 @@ import com.nutripharma.api_nutripharma.organization.nutricionistas.domain.Nutric
 import com.nutripharma.api_nutripharma.organization.nutricionistas.repository.NutricionistaRepository;
 import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
 import com.nutripharma.api_nutripharma.documents.documentacion.service.GoogleDriveService;
+import com.nutripharma.api_nutripharma.organization.farmacias.saldo.service.SaldoMovimientoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -29,6 +32,7 @@ public class ConsultaService {
     private final FarmaciaRepository farmaciaRepository;
     private final UsuarioRepository usuarioRepository;
     private final GoogleDriveService googleDriveService;
+    private final SaldoMovimientoService saldoMovimientoService;
 
     @Transactional
     public ConsultaResponse registrarTurno(ConsultaRequest request) {
@@ -185,33 +189,55 @@ public class ConsultaService {
     // =========================================================================================
 
     private void aplicarSaldoFarmacia(Consulta consulta) {
-        // Escudo: Si la farmacia fue borrada, no podemos darle dinero
         if (consulta.getFarmacia() == null) return;
 
         double totalGenerado = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
-        if (totalGenerado > 0) {
-            Farmacia farmacia = consulta.getFarmacia();
-            double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
-            double comisionFarmacia = totalGenerado * porcentajeDecimal;
-            double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
-            farmacia.setSaldoVirtual(saldoActual + comisionFarmacia);
-            farmaciaRepository.save(farmacia);
+        Farmacia farmacia = consulta.getFarmacia();
+
+        if (totalGenerado <= 0) {
+            consulta.setComisionGenerada(BigDecimal.ZERO);
+            return;
         }
+
+        double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+        BigDecimal comision = BigDecimal.valueOf(totalGenerado * porcentajeDecimal).setScale(2, RoundingMode.HALF_UP);
+
+        double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
+        farmacia.setSaldoVirtual(saldoActual + comision.doubleValue());
+        farmaciaRepository.save(farmacia);
+
+        consulta.setComisionGenerada(comision);
+
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        saldoMovimientoService.registrarIngreso(farmacia, comision, consulta.getId(), actor);
     }
 
     private void revertirSaldoFarmacia(Consulta consulta) {
-        // Escudo: Si la farmacia fue borrada, no hay a quien quitarle el dinero
         if (consulta.getFarmacia() == null) return;
 
-        double totalGeneradoAnterior = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
-        if (totalGeneradoAnterior > 0) {
-            Farmacia farmacia = consulta.getFarmacia();
-            double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
-            double comisionRevertir = totalGeneradoAnterior * porcentajeDecimal;
-            double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
-            farmacia.setSaldoVirtual(saldoActual - comisionRevertir);
-            farmaciaRepository.save(farmacia);
+        Farmacia farmacia = consulta.getFarmacia();
+        BigDecimal comisionARevertir;
+
+        if (consulta.getComisionGenerada() != null) {
+            comisionARevertir = consulta.getComisionGenerada();
+        } else {
+            // Fallback para consultas anteriores a la incorporación de este campo
+            double totalGenerado = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
+            if (totalGenerado <= 0) return;
+            double pct = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+            comisionARevertir = BigDecimal.valueOf(totalGenerado * pct).setScale(2, RoundingMode.HALF_UP);
         }
+
+        if (comisionARevertir.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
+        farmacia.setSaldoVirtual(saldoActual - comisionARevertir.doubleValue());
+        farmaciaRepository.save(farmacia);
+
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        saldoMovimientoService.registrarReversion(farmacia, comisionARevertir, consulta.getId(), actor);
     }
 
     // =========================================================================================
@@ -358,7 +384,8 @@ public class ConsultaService {
                 c.getMensajeIncidencia(),
                 c.getEvidenciaUrl(),
                 c.getEvidenciaFecha(),
-                c.getFechaCreacion()
+                c.getFechaCreacion(),
+                c.getComisionGenerada()
         );
     }
 }
