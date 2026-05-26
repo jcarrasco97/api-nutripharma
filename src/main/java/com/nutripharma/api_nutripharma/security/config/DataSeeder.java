@@ -8,6 +8,7 @@ import com.nutripharma.api_nutripharma.security.repository.RolRepository;
 import com.nutripharma.api_nutripharma.security.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,8 @@ public class DataSeeder implements CommandLineRunner {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
+    @Value("${ADMIN_PASSWORD}")
+    private String adminPassword;
 
     private final MaterialRepository materialRepository;
 
@@ -39,13 +42,12 @@ public class DataSeeder implements CommandLineRunner {
         // crearRolSiNoExiste("ROLE_FARMACIA");      // gestionado por data.sql
 
         // Asegurar la existencia del usuario administrador principal (Paco)
-        String adminEmail = "admin@nutripharma.com";
+        String adminEmail = "soporte@innaforem.es";
 
         if (!usuarioRepository.existsByEmail(adminEmail)) {
             Usuario adminUser = Usuario.builder()
                     .email(adminEmail)
-                    .password(passwordEncoder.encode("admin123"))
-                    .activo(true)
+                    .password(passwordEncoder.encode(adminPassword))                    .activo(true)
                     .roles(Set.of(superAdminRol, adminRol))
                     .build();
 
