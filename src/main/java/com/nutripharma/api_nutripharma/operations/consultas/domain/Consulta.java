@@ -81,6 +81,10 @@ public class Consulta {
     @Column(name = "comision_generada", precision = 10, scale = 2)
     private java.math.BigDecimal comisionGenerada;
 
+    // Porcentaje de comisión de la farmacia en el momento de crear la consulta.
+    @Column(name = "porcentaje_comision_aplicado")
+    private Double porcentajeComisionAplicado;
+
     // --- EVIDENCIAS (Prueba de Vida) ---
     @Column(name = "evidencia_url", length = 500)
     private String evidenciaUrl;

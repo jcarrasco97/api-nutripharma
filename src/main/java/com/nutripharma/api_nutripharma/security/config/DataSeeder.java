@@ -1,7 +1,7 @@
 package com.nutripharma.api_nutripharma.security.config;
 
-// import com.nutripharma.api_nutripharma.sales.suministros.domain.Material;
-// import com.nutripharma.api_nutripharma.sales.suministros.repository.MaterialRepository;
+import com.nutripharma.api_nutripharma.sales.suministros.domain.Material;
+import com.nutripharma.api_nutripharma.sales.suministros.repository.MaterialRepository;
 import com.nutripharma.api_nutripharma.security.domain.Rol;
 import com.nutripharma.api_nutripharma.security.domain.Usuario;
 import com.nutripharma.api_nutripharma.security.repository.RolRepository;
@@ -24,8 +24,7 @@ public class DataSeeder implements CommandLineRunner {
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Los materiales ya no se siembran desde aquí — gestionado por data.sql
-    // private final MaterialRepository materialRepository;
+    private final MaterialRepository materialRepository;
 
     @Override
     @Transactional
@@ -56,18 +55,17 @@ public class DataSeeder implements CommandLineRunner {
             log.info("El usuario administrador base ya existe. Omitiendo creación.");
         }
 
-        // El catálogo de materiales y el resto de datos maestros
-        // se cargan desde data.sql al arrancar la aplicación.
-        // if (materialRepository.count() == 0) {
-        //     log.info("Sembrando el catálogo de suministros y materiales corporativos...");
-        //     materialRepository.save(Material.builder().nombre("Hojas de dietas").cantidadEstandar(50).build());
-        //     materialRepository.save(Material.builder().nombre("Folios").cantidadEstandar(100).build());
-        //     materialRepository.save(Material.builder().nombre("Semillas").cantidadEstandar(10).build());
-        //     materialRepository.save(Material.builder().nombre("Tóner de impresora").cantidadEstandar(1).build());
-        //     materialRepository.save(Material.builder().nombre("Resistencias").cantidadEstandar(5).build());
-        //     materialRepository.save(Material.builder().nombre("Agenda").cantidadEstandar(1).build());
-        //     log.info("Catálogo de materiales sembrado con éxito.");
-        // }
+        // Siembra el catálogo de materiales si la tabla está vacía (idempotente)
+        if (materialRepository.count() == 0) {
+            log.info("Sembrando el catálogo de suministros y materiales corporativos...");
+            materialRepository.save(Material.builder().nombre("Hojas de dietas").cantidadEstandar(50).build());
+            materialRepository.save(Material.builder().nombre("Folios").cantidadEstandar(100).build());
+            materialRepository.save(Material.builder().nombre("Semillas").cantidadEstandar(10).build());
+            materialRepository.save(Material.builder().nombre("Tóner de impresora").cantidadEstandar(1).build());
+            materialRepository.save(Material.builder().nombre("Resistencias").cantidadEstandar(5).build());
+            materialRepository.save(Material.builder().nombre("Agenda").cantidadEstandar(1).build());
+            log.info("Catálogo de materiales sembrado con éxito.");
+        }
     }
 
     // Este método es seguro aunque los roles ya existan en BD:

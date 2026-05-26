@@ -14,8 +14,8 @@ public class ConsultaDTO {
             Long nutricionistaId,
             Long farmaciaId,
             LocalDate fecha,
-            @JsonFormat(pattern = "HH:mm") LocalTime horaInicio,
-            @JsonFormat(pattern = "HH:mm") LocalTime horaFin,
+            @JsonFormat(pattern = "HH:mm:ss") LocalTime horaInicio,
+            @JsonFormat(pattern = "HH:mm:ss") LocalTime horaFin,
             Integer nuevas,
             Integer revisiones,
             Integer promociones,
@@ -30,8 +30,8 @@ public class ConsultaDTO {
             Long farmaciaId,
             String farmaciaNombre,
             LocalDate fecha,
-            @JsonFormat(pattern = "HH:mm") LocalTime horaInicio,
-            @JsonFormat(pattern = "HH:mm") LocalTime horaFin,
+            @JsonFormat(pattern = "HH:mm:ss") LocalTime horaInicio,
+            @JsonFormat(pattern = "HH:mm:ss") LocalTime horaFin,
             Integer nuevas,
             Integer revisiones,
             Integer promociones,
@@ -42,6 +42,7 @@ public class ConsultaDTO {
             String evidenciaUrl,
             @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime evidenciaFecha,
             @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fechaCreacion,
-            BigDecimal comisionGenerada
+            BigDecimal comisionGenerada,
+            Double porcentajeComision
     ) {}
 }

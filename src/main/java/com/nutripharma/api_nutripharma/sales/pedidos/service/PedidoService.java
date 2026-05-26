@@ -19,6 +19,7 @@ import com.nutripharma.api_nutripharma.core.events.PedidoConfirmadoEvent; // <--
 import org.springframework.context.ApplicationEventPublisher; // <-- IMPORTA EL PUBLICADOR
 import com.nutripharma.api_nutripharma.organization.personal.repository.AdministradorRepository; // <-- AÑADIR ESTE
 import com.nutripharma.api_nutripharma.organization.farmacias.saldo.service.SaldoMovimientoService;
+import com.nutripharma.api_nutripharma.core.settings.service.ConfiguracionGlobalService;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -37,8 +38,7 @@ public class PedidoService {
     private final ApplicationEventPublisher eventPublisher; // <-- INYECTA EL EVENT PUBLISHER
     private final AdministradorRepository administradorRepository;
     private final SaldoMovimientoService saldoMovimientoService;
-
-    private static final BigDecimal UMBRAL_LIQUIDACION = new BigDecimal("80.00");
+    private final ConfiguracionGlobalService configuracionGlobalService;
 
     @Transactional
     public PedidoResponse crearPedido(PedidoRequest request) {
@@ -90,7 +90,8 @@ public class PedidoService {
                     .orElseThrow(() -> new NoSuchElementException("Producto no encontrado: " + lineaReq.productoId()));
 
             boolean pagadoConSaldo = lineaReq.pagadoConSaldo() != null && lineaReq.pagadoConSaldo();
-            BigDecimal precioAplicable = farmacia.getEsProvinciaLocal() ? producto.getPvf() : producto.getPvp();
+            boolean esLocal = farmacia.getEsProvinciaLocal() != null && farmacia.getEsProvinciaLocal();
+            BigDecimal precioAplicable = esLocal ? producto.getPvf() : producto.getPvp();
             BigDecimal subtotal = precioAplicable.multiply(new BigDecimal(lineaReq.cantidad()));
 
             if (pagadoConSaldo) {
@@ -112,8 +113,9 @@ public class PedidoService {
 
         // 3. REGLAS MONEDERO VIRTUAL
         if (totalSaldo.compareTo(BigDecimal.ZERO) > 0) {
-            if (totalReal.compareTo(UMBRAL_LIQUIDACION) < 0) {
-                throw new IllegalStateException("El importe en dinero real debe ser igual o superior a " + UMBRAL_LIQUIDACION + "€. (Actual: " + totalReal + "€)");
+            BigDecimal umbralLiquidacion = BigDecimal.valueOf(configuracionGlobalService.obtenerConfiguracion().getLimiteMonedero());
+            if (totalReal.compareTo(umbralLiquidacion) < 0) {
+                throw new IllegalStateException("El importe en dinero real debe ser igual o superior a " + umbralLiquidacion + "€. (Actual: " + totalReal + "€)");
             }
             BigDecimal saldoDisponible = BigDecimal.valueOf(farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0);
             if (saldoDisponible.compareTo(totalSaldo) < 0) {

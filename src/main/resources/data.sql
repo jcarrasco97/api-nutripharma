@@ -315,6 +315,20 @@ INSERT INTO `productos` (`id`, `activo`, `acronimo`, `borrado_por`, `categoria`,
   (34, 0, 'gra', NULL, 'GRANDE',  NULL, 0, 8.00, 'Anxiestop (60 Caps) Duplicado',             12.42, 19.75, '10103'),
   (35, 0, 'peq', NULL, 'PEQUENO', NULL, 0, 8.00, 'Psicoactive (30 Caps)',                       7.86, 12.50, '10213');
 
+-- ============================================================================
+-- 8. MATERIALES DE SUMINISTROS
+-- ============================================================================
+-- Catálogo de materiales corporativos que las nutricionistas pueden solicitar.
+-- cantidad_estandar: unidades que se envían por defecto en cada petición.
+
+INSERT INTO `materiales` (`nombre`, `cantidad_estandar`) VALUES
+  ('Hojas de dietas',      50),
+  ('Folios',              100),
+  ('Semillas',             10),
+  ('Tóner de impresora',    1),
+  ('Resistencias',          5),
+  ('Agenda',                1);
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================

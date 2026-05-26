@@ -36,6 +36,7 @@ public class GlobalExceptionHandler {
     // Conflict
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Object> handleIllegalStateException(IllegalStateException ex) {
+        ex.printStackTrace(); // ¡VITAL para debugear 409!
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("message", ex.getMessage());
@@ -46,6 +47,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<Object> handleDataIntegrityViolationException(
             org.springframework.dao.DataIntegrityViolationException ex) {
+        ex.printStackTrace(); // ¡VITAL para debugear 409!
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
 

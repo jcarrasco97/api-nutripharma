@@ -73,6 +73,7 @@ public class ConsultaService {
                 .personalFarmacia(request.personalFarmacia() != null ? request.personalFarmacia() : 0)
                 .observacionesJornada(request.observacionesJornada())
                 .estado(EstadoConsulta.BORRADOR)
+                .porcentajeComisionAplicado(farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0)
                 .build();
 
         return mapToResponse(consultaRepository.save(nuevaConsulta));
@@ -199,7 +200,11 @@ public class ConsultaService {
             return;
         }
 
-        double porcentajeDecimal = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+        double pctAplicado = consulta.getPorcentajeComisionAplicado() != null 
+                ? consulta.getPorcentajeComisionAplicado() 
+                : (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0);
+        
+        double porcentajeDecimal = pctAplicado / 100.0;
         BigDecimal comision = BigDecimal.valueOf(totalGenerado * porcentajeDecimal).setScale(2, RoundingMode.HALF_UP);
 
         double saldoActual = farmacia.getSaldoVirtual() != null ? farmacia.getSaldoVirtual() : 0.0;
@@ -225,7 +230,12 @@ public class ConsultaService {
             // Fallback para consultas anteriores a la incorporación de este campo
             double totalGenerado = (consulta.getNuevas() * 25.0) + (consulta.getRevisiones() * 20.0);
             if (totalGenerado <= 0) return;
-            double pct = (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0) / 100.0;
+            
+            double pctAplicado = consulta.getPorcentajeComisionAplicado() != null 
+                    ? consulta.getPorcentajeComisionAplicado() 
+                    : (farmacia.getPorcentajeComision() != null ? farmacia.getPorcentajeComision() : 30.0);
+            
+            double pct = pctAplicado / 100.0;
             comisionARevertir = BigDecimal.valueOf(totalGenerado * pct).setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -385,7 +395,10 @@ public class ConsultaService {
                 c.getEvidenciaUrl(),
                 c.getEvidenciaFecha(),
                 c.getFechaCreacion(),
-                c.getComisionGenerada()
+                c.getComisionGenerada(),
+                c.getPorcentajeComisionAplicado() != null 
+                        ? c.getPorcentajeComisionAplicado() 
+                        : (c.getFarmacia() != null ? c.getFarmacia().getPorcentajeComision() : null)
         );
     }
 }
