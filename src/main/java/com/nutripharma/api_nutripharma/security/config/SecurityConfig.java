@@ -37,6 +37,7 @@ public class SecurityConfig {
                     config.setAllowedOrigins(List.of(
                             "http://localhost:5173",
                             "http://localhost",
+                            "https://localhost",
                             "capacitor://localhost",
                             frontendUrl));
                     config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
